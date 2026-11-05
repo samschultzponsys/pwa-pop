@@ -9,6 +9,12 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [1.3] - 2026-11-05
+
+First published release since 1.0. It includes everything from 1.1 and 1.2
+below: the fix for the Flatpak manager's "Open" crash, update checks and
+self-update, and the Flatpak repository.
+
 ### Changed
 - The update check picks the highest version among published releases instead
   of GitHub's "latest" flag, so publishing an older release late can't hide a
@@ -21,6 +27,8 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
   packages from an earlier run without rebuilding.
 
 ## [1.2] - 2026-11-05
+
+_Not published as separate packages (the release step failed in CI); these changes ship in 1.3._
 
 ### Added
 - **Updates.** Every PWA Pop process checks GitHub Releases (shortly after start,
@@ -38,6 +46,8 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
   GPG-signed when the `FLATPAK_GPG_PRIVATE_KEY` secret is set.
 
 ## [1.1] - 2026-11-05
+
+_Not published as separate packages (the release step failed in CI); these changes ship in 1.3._
 
 ### Fixed
 - Flatpak: "Open" in the manager crashed with `spawn flatpak ENOENT`. Apps and
