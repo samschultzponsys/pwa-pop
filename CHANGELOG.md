@@ -14,6 +14,11 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
   of GitHub's "latest" flag, so publishing an older release late can't hide a
   newer one.
 - CI installs packaging tools without recommended packages (faster builds).
+- CI: releases are published by a separate job that tags the commit with git
+  and then creates the release with `gh`. The 1.1 and 1.2 releases had failed
+  with "Resource not accessible by integration" when the release action tried
+  to create the tag itself. A manual "Run workflow" with `from_run` republishes
+  packages from an earlier run without rebuilding.
 
 ## [1.2] - 2026-11-05
 
