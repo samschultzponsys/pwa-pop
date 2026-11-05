@@ -11,6 +11,7 @@ import { NotificationBridge } from './notifications';
 import { isSafeExternal, OriginMatcher } from './origins';
 import { assetPath, ensureDir, ICON_DIR, spawnSelf } from './paths';
 import { StateStore } from './state';
+import { backgroundCheck, UpdateInfo } from './updater';
 
 /** Permissions granted to allowed origins unless the config adds more. */
 const BASE_PERMISSIONS = [
@@ -52,6 +53,7 @@ export class AppRuntime {
   private unread = 0;
   private quitting = false;
   private shownAt = 0;
+  private update: UpdateInfo | null = null;
   private notifications: NotificationBridge;
   private preload = path.join(__dirname, 'preload', 'app-preload.js');
 
@@ -80,6 +82,23 @@ export class AppRuntime {
     this.createWindow();
     this.createTray();
     this.setupLifecycle();
+    this.scheduleUpdateChecks();
+  }
+
+  /** Check GitHub Releases shortly after start and then every 12 h. */
+  private scheduleUpdateChecks() {
+    const check = () => backgroundCheck((u) => {
+      this.update = u;
+      this.refreshMenu();
+      this.notifications.notify(
+        `PWA Pop ${u.latest} is available`,
+        u.canInstall ? 'Click to install the update.' : u.kind === 'flatpak'
+          ? 'It will arrive through Discover / flatpak update.' : 'Click to see what is new.',
+        () => this.openManager(),
+      );
+    }).catch(() => { /* offline: try again later */ });
+    setTimeout(check, 60_000 + Math.random() * 60_000);
+    setInterval(check, 12 * 60 * 60 * 1000 + Math.random() * 600_000);
   }
 
   // ---------------------------------------------------------------- session
@@ -408,6 +427,8 @@ export class AppRuntime {
         click: (item) => { this.state.update({ muted: item.checked }, true); this.refreshMenu(); },
       },
       { type: 'separator' },
+      ...(this.update?.available
+        ? [{ label: `Update PWA Pop to ${this.update.latest}…`, click: () => this.openManager() }] : []),
       { label: 'Manage apps…', click: () => this.openManager() },
       { type: 'separator' },
       { label: 'Quit', click: () => this.quit() },

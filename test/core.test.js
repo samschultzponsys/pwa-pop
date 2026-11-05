@@ -65,3 +65,16 @@ test('config validation', () => {
   fs.writeFileSync(file, `- id: a\n  url: nope\n`);
   assert.throws(() => config.loadApps(), /url/);
 });
+
+test('release version comparison (MAJOR.MINOR, .9 rolls over)', () => {
+  const { isNewer, parseVersion } = require('../dist/updater');
+  assert.deepStrictEqual(parseVersion('v1.2'), [1, 2]);
+  assert.deepStrictEqual(parseVersion('1.2.0'), [1, 2]);
+  assert.strictEqual(parseVersion('latest'), null);
+  assert.ok(isNewer('v1.2', '1.1'));
+  assert.ok(isNewer('v2.0', '1.9'));
+  assert.ok(isNewer('v1.10', '1.9'));
+  assert.ok(!isNewer('v1.1', '1.1'));
+  assert.ok(!isNewer('v1.0', '1.1'));
+  assert.ok(!isNewer('garbage', '1.1'));
+});

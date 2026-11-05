@@ -24,6 +24,8 @@ Usage:
   webtray --list                  Show configured apps
   webtray --add <url> [--id <id>] [--name <name>] [--autostart] [--start-hidden]
                                   Add an app to apps.yaml
+  webtray --check-update          Check GitHub for a newer PWA Pop
+  webtray --update                Download, verify and install it (AppImage, rpm, deb, pacman)
   webtray --version | --help
 
 Config: ${CONFIG_FILE}
@@ -114,7 +116,32 @@ function cli(): boolean {
   return false;
 }
 
+async function updateCli(install: boolean): Promise<void> {
+  const { checkForUpdates, installUpdate } = await import('./updater');
+  const u = await checkForUpdates(true);
+  if (u.error) fail(`update check failed: ${u.error}`);
+  if (!u.available) { out(`PWA Pop ${u.current} is up to date.`); return; }
+  out(`PWA Pop ${u.latest} is available (you have ${u.current}, installed as ${u.kind}).`);
+  if (!install) return;
+  if (!u.canInstall) {
+    out(u.kind === 'flatpak' ? 'Run: flatpak update io.github.samschultzponsys.PwaPop' : `Download it from ${u.releaseUrl}`);
+    return;
+  }
+  let last = -1;
+  out(await installUpdate((p) => {
+    const pct = Math.floor(p * 10) * 10;
+    if (pct !== last) { last = pct; process.stdout.write(`  downloading… ${pct}%\n`); }
+  }));
+}
+
 function main() {
+  if (flag('--update') || flag('--check-update')) {
+    app.setPath('userData', path.join(PROFILE_DIR, '_cli'));
+    app.whenReady()
+      .then(() => updateCli(flag('--update')))
+      .then(() => app.exit(0), (e) => fail(e?.message ?? String(e)));
+    return;
+  }
   try {
     if (cli()) { app.exit(0); return; }
   } catch (e: any) {

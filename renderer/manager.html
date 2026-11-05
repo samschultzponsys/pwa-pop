@@ -18,6 +18,15 @@
     <button id="btn-add" class="primary">+ Add app</button>
   </header>
 
+  <div id="update-banner" class="update-banner hidden">
+    <div class="grow">
+      <strong id="update-title"></strong>
+      <span id="update-text" class="muted"></span>
+    </div>
+    <button id="btn-update-notes" class="ghost">What's new</button>
+    <button id="btn-update-install" class="primary hidden">Install update</button>
+  </div>
+
   <main>
     <section id="empty" class="empty hidden">
       <img src="../assets/icon.svg" alt="">
@@ -33,6 +42,8 @@
     <span class="sep">·</span>
     <span id="config-path"></span>
     <span class="spacer"></span>
+    <label class="check small"><input type="checkbox" id="f-autoupdate"> Check for updates automatically</label>
+    <button id="btn-check-update" class="link">Check now</button>
     <button id="btn-manager-entry" class="link hidden">Add PWA Pop to the app menu</button>
   </footer>
 

@@ -291,10 +291,61 @@ $('#btn-config').addEventListener('click', () => api.openConfig());
 $('#btn-manager-entry').addEventListener('click', () => guard(async () => { await api.installManager(); toast('PWA Pop added to the application menu'); }));
 window.addEventListener('focus', refresh);
 
+// --------------------------------------------------------------- updates
+let lastUpdate = null;
+function showUpdate(u) {
+  lastUpdate = u;
+  const banner = $('#update-banner');
+  if (!u || !u.available) { banner.classList.add('hidden'); return; }
+  banner.classList.remove('hidden');
+  $('#update-title').textContent = `PWA Pop ${u.latest} is available`;
+  const how = {
+    flatpak: 'Flatpak updates arrive through Discover or "flatpak update".',
+    appimage: 'Installing replaces this AppImage file.',
+    rpm: 'Installing asks for your password and updates the package.',
+    deb: 'Installing asks for your password and updates the package.',
+    pacman: 'Installing asks for your password and updates the package.',
+    manual: 'Download the new version from the release page.',
+    dev: 'You are running from source: git pull to update.',
+  }[u.kind] || '';
+  $('#update-text').textContent = `You have ${u.current}. ${how}`;
+  $('#btn-update-install').classList.toggle('hidden', !u.canInstall);
+}
+
+async function checkUpdate(force) {
+  const u = await api.checkUpdate(force);
+  showUpdate(u);
+  if (force) {
+    if (u.error) toast(`Update check failed: ${u.error}`);
+    else if (!u.available) toast(`PWA Pop ${u.current} is the latest version`);
+  }
+}
+
+$('#btn-check-update').addEventListener('click', () => guard(() => checkUpdate(true)));
+$('#btn-update-notes').addEventListener('click', () => { if (lastUpdate?.releaseUrl) api.openExternal(lastUpdate.releaseUrl); });
+$('#btn-update-install').addEventListener('click', () => guard(async () => {
+  const btn = $('#btn-update-install');
+  btn.disabled = true;
+  btn.textContent = 'Downloading…';
+  try {
+    const msg = await api.installUpdate();
+    $('#update-title').textContent = 'Update installed';
+    $('#update-text').textContent = msg;
+    btn.classList.add('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Install update';
+  }
+}));
+api.onUpdateProgress((p) => { $('#btn-update-install').textContent = `Downloading… ${Math.round(p * 100)}%`; });
+$('#f-autoupdate').addEventListener('change', (e) => guard(() => api.setAutoUpdate(e.target.checked)));
+
 (async () => {
   const info = await api.info();
   $('#version').textContent = `PWA Pop ${info.version}`;
   $('#config-path').textContent = info.configFile;
   $('#btn-manager-entry').classList.toggle('hidden', !info.appImage);
   await refresh();
+  $('#f-autoupdate').checked = await api.getAutoUpdate();
+  if ($('#f-autoupdate').checked) checkUpdate(false).catch(() => {});
 })();

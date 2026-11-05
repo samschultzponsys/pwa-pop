@@ -9,6 +9,23 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [1.2] - 2026-11-05
+
+### Added
+- **Updates.** Every PWA Pop process checks GitHub Releases (shortly after start,
+  then every 12 hours) and shows one notification per new version. The tray menu
+  gets an "Update PWA Pop to x.y…" item, and the manager shows an update banner,
+  a "Check now" button and a "Check for updates automatically" switch.
+- **One-click install** for AppImage (the AppImage file is replaced) and for
+  rpm / deb / pacman (installed with `pkexec` + dnf/zypper/rpm, apt or pacman,
+  after your password). Every download is checked against the release's
+  `SHA256SUMS.txt` before it is installed.
+- **Flatpak repository** on GitHub Pages
+  (`https://samschultzponsys.github.io/pwa-pop/`), with `.flatpakref` and
+  `.flatpakrepo` files. Flatpak installs from it, or from a 1.2+ `.flatpak`
+  bundle, update through KDE Discover / `flatpak update`. The repository is
+  GPG-signed when the `FLATPAK_GPG_PRIVATE_KEY` secret is set.
+
 ## [1.1] - 2026-11-05
 
 ### Fixed

@@ -6,7 +6,7 @@
 Run Outlook, Claude, the Yeastar Linkus softphone or any other site as a real desktop app,
 with its own window, tray icon, login, notifications, unread badge, autostart and headset buttons.</p>
 
-<p align="center">Current version: <b>1.1</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
+<p align="center">Current version: <b>1.2</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
 
 ---
 
@@ -50,6 +50,13 @@ has all formats, with the version in each file name:
 
 The rpm/deb/pacman packages install to `/opt/webtray` and add `/usr/bin/webtray`,
 a "PWA Pop" menu entry and the headset udev rule.
+
+**Flatpak with automatic updates:** install from the PWA Pop Flatpak repository
+instead of a downloaded file, and Discover / `flatpak update` keep it current:
+
+```bash
+flatpak install --user https://samschultzponsys.github.io/pwa-pop/pwa-pop.flatpakref
+```
 
 ### Which one should I use?
 
@@ -101,6 +108,8 @@ webtray --install <id>           Write ~/.local/share/applications/webtray-<id>.
 webtray --uninstall <id>         Remove both entries
 webtray --list                   Show configured apps and what is installed
 webtray --add <url> [--id x] [--name "X"] [--autostart] [--start-hidden]
+webtray --check-update           Check for a newer PWA Pop
+webtray --update                 Download, verify and install it
 webtray --version
 ```
 
@@ -218,6 +227,44 @@ flatpak build-bundle repo ../release/pwa-pop.flatpak io.github.samschultzponsys.
 ```
 
 Unit tests: `npm test`. Manual release checks: [TESTING.md](TESTING.md).
+
+## Updates
+
+PWA Pop checks GitHub Releases shortly after it starts and then every 12 hours,
+and tells you once per new version (notification, tray menu item and a banner
+in the manager). You can turn this off in the manager's footer.
+
+| Installed as | How updates are installed |
+|---|---|
+| AppImage | **Install update** downloads the new AppImage, verifies it, and replaces the file. |
+| rpm / deb / pacman | **Install update** downloads the package, verifies it, and installs it with your password (`pkexec dnf/apt/pacman`). |
+| Flatpak (from the repository, or a 1.2+ bundle) | Automatic through Discover / GNOME Software / `flatpak update`. |
+| tar.gz | You're told about the release; download it yourself. |
+
+Every download is checked against the release's `SHA256SUMS.txt` before it is
+installed. Running apps switch to the new version when you restart them
+(Quit from the tray, then open them again).
+
+### Maintainer setup for the Flatpak repository (one time)
+
+1. Repository **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+   The workflow then publishes the Flatpak repository to
+   `https://samschultzponsys.github.io/pwa-pop/` on every release.
+2. Optional, recommended: sign the repository. Without a key it is published
+   unsigned (still served over HTTPS). Create a key on your own machine:
+
+   ```bash
+   gpg --batch --passphrase '' --quick-gen-key "PWA Pop Flatpak <sam.schultz2014@gmail.com>" ed25519 sign never
+   ```
+
+   ```bash
+   gpg --armor --export-secret-keys "PWA Pop Flatpak" > pwa-pop-flatpak.key
+   ```
+
+   Paste the contents of `pwa-pop-flatpak.key` into **Settings → Secrets and
+   variables → Actions → New repository secret** named `FLATPAK_GPG_PRIVATE_KEY`,
+   then delete the file. Once a release has been signed, keep using the same key;
+   changing it later means users have to re-add the repository.
 
 ## Versioning & releases
 

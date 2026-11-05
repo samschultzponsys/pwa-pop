@@ -52,14 +52,57 @@ jobs:
       - name: Build AppImage, rpm, deb, pacman, tar.gz
         run: npm run dist
 
-      - name: Build Flatpak bundle
+      - name: Import Flatpak signing key (optional)
+        id: gpg
+        env:
+          FLATPAK_GPG_PRIVATE_KEY: ${{ secrets.FLATPAK_GPG_PRIVATE_KEY }}
+        run: |
+          if [ -z "$FLATPAK_GPG_PRIVATE_KEY" ]; then
+            echo "No FLATPAK_GPG_PRIVATE_KEY secret: the Flatpak repository will be unsigned."
+            echo "args=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          export GNUPGHOME="$RUNNER_TEMP/gnupg"; mkdir -m 700 -p "$GNUPGHOME"
+          echo "$FLATPAK_GPG_PRIVATE_KEY" | gpg --batch --import
+          KEY=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr/ {print $10; exit}')
+          gpg --export "$KEY" > "$RUNNER_TEMP/flatpak-pubkey.gpg"
+          echo "args=--gpg-sign=$KEY --gpg-homedir=$GNUPGHOME" >> "$GITHUB_OUTPUT"
+          echo "pubkey=$RUNNER_TEMP/flatpak-pubkey.gpg" >> "$GITHUB_OUTPUT"
+
+      - name: Build Flatpak bundle + repository
+        id: flatpak
         continue-on-error: true
+        env:
+          V: ${{ steps.ver.outputs.version }}
+          GPG_ARGS: ${{ steps.gpg.outputs.args }}
+          PUBKEY: ${{ steps.gpg.outputs.pubkey }}
+          REPO_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/repo/
         run: |
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           cd flatpak
-          flatpak-builder --user --install-deps-from=flathub --force-clean --repo=repo build-dir io.github.samschultzponsys.PwaPop.yml
-          flatpak build-bundle repo "../release/pwa-pop-${{ steps.ver.outputs.version }}-x86_64.flatpak" io.github.samschultzponsys.PwaPop \
-            --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak-builder --user --install-deps-from=flathub --force-clean $GPG_ARGS \
+            --default-branch=stable --repo=repo build-dir io.github.samschultzponsys.PwaPop.yml
+          flatpak build-update-repo $GPG_ARGS --title="PWA Pop" --default-branch=stable --prune repo
+          BUNDLE_KEYS=""; [ -n "$PUBKEY" ] && BUNDLE_KEYS="--gpg-keys=$PUBKEY"
+          # --repo-url makes bundle installs track the repository, so Discover /
+          # flatpak update pick up new versions.
+          flatpak build-bundle $GPG_ARGS $BUNDLE_KEYS --repo-url="$REPO_URL" \
+            --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
+            repo "../release/pwa-pop-$V-x86_64.flatpak" io.github.samschultzponsys.PwaPop stable
+
+          # GitHub Pages site: the OSTree repository + .flatpakrepo/.flatpakref files.
+          SITE=../site; mkdir -p $SITE
+          cp -a repo $SITE/repo
+          rm -rf $SITE/repo/tmp $SITE/repo/.lock
+          cp ../assets/icons/128x128.png $SITE/icon.png
+          GPGLINE=""; [ -n "$PUBKEY" ] && GPGLINE="GPGKey=$(base64 -w0 "$PUBKEY")"
+          printf '[Flatpak Repo]\nTitle=PWA Pop\nUrl=%s\nHomepage=https://github.com/%s\nComment=Web apps that live in your tray\nIcon=%sicon.png\nDefaultBranch=stable\n%s\n' \
+            "$REPO_URL" "${{ github.repository }}" "${REPO_URL%repo/}" "$GPGLINE" > $SITE/pwa-pop.flatpakrepo
+          printf '[Flatpak Ref]\nTitle=PWA Pop\nName=io.github.samschultzponsys.PwaPop\nBranch=stable\nUrl=%s\nSuggestRemoteName=pwa-pop\nHomepage=https://github.com/%s\nIcon=%sicon.png\nRuntimeRepo=https://dl.flathub.org/repo/flathub.flatpakrepo\nIsRuntime=false\n%s\n' \
+            "$REPO_URL" "${{ github.repository }}" "${REPO_URL%repo/}" "$GPGLINE" > $SITE/pwa-pop.flatpakref
+          sed "s|@VERSION@|$V|g" site-index.html > $SITE/index.html
+          touch $SITE/.nojekyll
+          echo "site=true" >> "$GITHUB_OUTPUT"
 
       - name: Checksums
         run: |
@@ -84,10 +127,16 @@ jobs:
             echo "| Debian / Ubuntu / Mint | \`pwa-pop-$V-amd64.deb\` |"
             echo "| Arch / Manjaro | \`pwa-pop-$V-x64.pacman\` |"
             echo "| Any distro (portable) | \`pwa-pop-$V-x86_64.AppImage\` |"
-            echo "| Any distro (sandboxed) | \`pwa-pop-$V-x86_64.flatpak\` |"
+            echo "| Any distro (sandboxed) | \`pwa-pop-$V-x86_64.flatpak\`, or with auto-updates: \`flatpak install --user https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/pwa-pop.flatpakref\` |"
             echo "| Manual install | \`pwa-pop-$V-x64.tar.gz\` |"
           } >> release-notes.md
           cat release-notes.md
+
+      - name: Upload Flatpak repository for GitHub Pages
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.ver.outputs.released == 'false' && steps.flatpak.outputs.site == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
 
       - uses: actions/upload-artifact@v4
         with:
@@ -109,3 +158,22 @@ jobs:
           files: |
             release/pwa-pop-${{ steps.ver.outputs.version }}-*
             release/SHA256SUMS.txt
+
+    outputs:
+      publish_pages: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && steps.ver.outputs.released == 'false' && steps.flatpak.outputs.site == 'true' }}
+
+  # Publishes the Flatpak repository to https://<owner>.github.io/pwa-pop/.
+  # One-time setup: repository Settings -> Pages -> Source: "GitHub Actions".
+  pages:
+    needs: build
+    if: needs.build.outputs.publish_pages == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

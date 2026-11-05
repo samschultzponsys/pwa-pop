@@ -7,6 +7,7 @@ import { installApp, installManagerEntry, isInstalled, setAutostart, uninstallAp
 import { CONFIG_FILE, ensureDir, ICON_DIR, PROFILE_DIR, assetPath, IN_FLATPAK, releaseVersion, spawnSelf } from './paths';
 import { cleanUserAgent } from './runtime';
 import { inspectSite } from './inspect';
+import { autoCheckEnabled, checkForUpdates, installUpdate, setAutoCheck } from './updater';
 
 /**
  * Is the app running? Chromium keeps a "SingletonSocket" in the profile. If
@@ -124,6 +125,12 @@ function registerIpc(win: BrowserWindow) {
   h('app:info', () => ({
     version: releaseVersion(), configFile: CONFIG_FILE, flatpak: IN_FLATPAK, appImage: !!process.env.APPIMAGE,
   }));
+  h('update:check', (force: boolean) => checkForUpdates(!!force));
+  h('update:install', () => installUpdate((p) => {
+    if (!win.isDestroyed()) { win.setProgressBar(p); win.webContents.send('update:progress', p); }
+  }).finally(() => { if (!win.isDestroyed()) win.setProgressBar(-1); }));
+  h('update:getAuto', () => autoCheckEnabled());
+  h('update:setAuto', (on: boolean) => { setAutoCheck(!!on); return true; });
   h('app:openExternal', (url: string) => { if (/^https?:/.test(url)) void shell.openExternal(url); });
 }
 

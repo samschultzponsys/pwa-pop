@@ -16,4 +16,9 @@ contextBridge.exposeInMainWorld('webtray', {
   installManager: call('app:installManager'),
   info: call('app:info'),
   openExternal: call('app:openExternal'),
+  checkUpdate: call('update:check'),
+  installUpdate: call('update:install'),
+  getAutoUpdate: call('update:getAuto'),
+  setAutoUpdate: call('update:setAuto'),
+  onUpdateProgress: (cb: (p: number) => void) => { ipcRenderer.on('update:progress', (_e, p: number) => cb(p)); },
 });
