@@ -9,6 +9,12 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+### Changed
+- The update check picks the highest version among published releases instead
+  of GitHub's "latest" flag, so publishing an older release late can't hide a
+  newer one.
+- CI installs packaging tools without recommended packages (faster builds).
+
 ## [1.2] - 2026-11-05
 
 ### Added

@@ -127,9 +127,17 @@ export async function checkForUpdates(force = false): Promise<UpdateInfo> {
   const s = readState();
   if (!force && s.lastCheck && Date.now() - s.lastCheck < CHECK_INTERVAL_MS) return info(s, kind);
   try {
-    const rel = await fetchJson(`https://api.github.com/repos/${REPO}/releases/latest`);
-    const v = parseVersion(String(rel.tag_name ?? ''));
-    if (!v) throw new Error(`unexpected release tag ${rel.tag_name}`);
+    // Pick the highest MAJOR.MINOR among published releases rather than
+    // GitHub's "latest" flag, which follows publish order.
+    const list: any[] = await fetchJson(`https://api.github.com/repos/${REPO}/releases?per_page=30`);
+    let rel: any = null;
+    let v: [number, number] | null = null;
+    for (const r of list) {
+      if (r.draft || r.prerelease) continue;
+      const pv = parseVersion(String(r.tag_name ?? ''));
+      if (pv && (!v || pv[0] > v[0] || (pv[0] === v[0] && pv[1] > v[1]))) { v = pv; rel = r; }
+    }
+    if (!v || !rel) throw new Error('no published releases found');
     s.latest = `${v[0]}.${v[1]}`;
     s.releaseUrl = rel.html_url;
     s.notes = String(rel.body ?? '').split('\n### Downloads')[0].trim();
