@@ -72,3 +72,56 @@ export function desktopQuote(arg: string): string {
 export function releaseVersion(): string {
   return app.getVersion().split('.').slice(0, 2).join('.');
 }
+
+/**
+ * Start another webtray process (an app, or the manager) from this one.
+ *
+ * Inside Flatpak the `flatpak` command does not exist, and a plain child
+ * process would die with this sandbox when the manager closes. So we ask the
+ * Flatpak portal for a fresh sandbox of this same app via `flatpak-spawn`
+ * (no --host, so no extra permissions). Resolves with an error message
+ * instead of throwing, so a failed launch never crashes the caller.
+ */
+export function spawnSelf(args: string[]): Promise<string | null> {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { spawn } = require('child_process') as typeof import('child_process');
+  const attempts: string[][] = [];
+  // Keep running unsandboxed children if we were started that way.
+  if (process.argv.includes('--no-sandbox')) args = [...args, '--no-sandbox'];
+  if (IN_FLATPAK) {
+    attempts.push(['flatpak-spawn', '--', '/app/bin/webtray', ...args]);
+    attempts.push(['/app/bin/webtray', ...args]);
+  } else {
+    attempts.push([...launcherCommand(), ...args]);
+  }
+  const env = { ...process.env };
+  // Each app must pick its own desktop id; don't leak the caller's.
+  delete env.CHROME_DESKTOP;
+
+  return new Promise((resolve) => {
+    const tryNext = (i: number, lastError: string | null) => {
+      if (i >= attempts.length) { resolve(lastError ?? 'could not start webtray'); return; }
+      const [cmd, ...rest] = attempts[i];
+      let settled = false;
+      try {
+        const child = spawn(cmd, rest, { detached: true, stdio: 'ignore', env });
+        child.once('error', (e) => {
+          if (settled) return;
+          settled = true;
+          console.warn(`[webtray] failed to run ${cmd}: ${e.message}`);
+          tryNext(i + 1, `${cmd}: ${e.message}`);
+        });
+        child.once('spawn', () => {
+          if (settled) return;
+          settled = true;
+          child.unref();
+          resolve(null);
+        });
+      } catch (e: any) {
+        settled = true;
+        tryNext(i + 1, `${cmd}: ${e?.message ?? e}`);
+      }
+    };
+    tryNext(0, null);
+  });
+}

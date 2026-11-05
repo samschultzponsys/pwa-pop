@@ -37,6 +37,10 @@ app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
 app.commandLine.appendSwitch('enable-features', 'WaylandWindowDecorations,WebRTCPipeWireCapturer');
 
+// A tray app must not die (or show a crash dialog) because of one stray error.
+process.on('uncaughtException', (e) => { console.error('[webtray] uncaught exception:', e); });
+process.on('unhandledRejection', (e) => { console.error('[webtray] unhandled rejection:', e); });
+
 // Electron puts its own args first; skip them. Chromium switches are ignored.
 const argv = process.argv.slice(app.isPackaged ? 1 : 2);
 

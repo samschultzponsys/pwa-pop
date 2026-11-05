@@ -9,6 +9,18 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [1.1] - 2026-11-05
+
+### Fixed
+- Flatpak: "Open" in the manager crashed with `spawn flatpak ENOENT`. Apps and
+  the manager are now started in a new sandbox through the Flatpak portal
+  (`flatpak-spawn`), so they keep running after the manager is closed.
+- A failed launch now shows an error message instead of a crash dialog, and
+  stray main-process errors are logged instead of stopping the app.
+- The manager's "running" badge now works across Flatpak sandboxes (it checks
+  the app's singleton socket instead of a PID from another namespace).
+- `--no-sandbox` is passed on to apps started from the manager or tray.
+
 ## [1.0] - 2026-11-04
 
 First release.

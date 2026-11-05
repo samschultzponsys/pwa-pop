@@ -1,6 +1,5 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { spawn } from 'child_process';
 import {
   app, BrowserWindow, clipboard, desktopCapturer, Menu, MenuItemConstructorOptions, NativeImage, powerMonitor,
   screen, session as electronSession, Session, shell, Tray, WebContents,
@@ -10,7 +9,7 @@ import { badgeIcon, parseUnread } from './badge';
 import { defaultIcon, imageFromBuffer, loadIconFile } from './icons';
 import { NotificationBridge } from './notifications';
 import { isSafeExternal, OriginMatcher } from './origins';
-import { assetPath, ensureDir, ICON_DIR, launcherCommand } from './paths';
+import { assetPath, ensureDir, ICON_DIR, spawnSelf } from './paths';
 import { StateStore } from './state';
 
 /** Permissions granted to allowed origins unless the config adds more. */
@@ -436,8 +435,9 @@ export class AppRuntime {
   }
 
   private openManager() {
-    const [cmd, ...args] = launcherCommand();
-    spawn(cmd, [...args, '--manager'], { detached: true, stdio: 'ignore' }).unref();
+    void spawnSelf(['--manager']).then((err) => {
+      if (err) this.notifications.notify('PWA Pop', `Could not open the manager: ${err}`);
+    });
   }
 
   quit() {

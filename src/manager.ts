@@ -1,24 +1,35 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { spawn } from 'child_process';
+import * as net from 'net';
 import { app, BrowserWindow, dialog, ipcMain, nativeImage, session, shell } from 'electron';
 import { AppConfig, ID_RE, loadApps, removeApp, resolveApp, upsertApp } from './config';
 import { installApp, installManagerEntry, isInstalled, setAutostart, uninstallApp } from './desktop';
-import { CONFIG_FILE, ensureDir, ICON_DIR, launcherCommand, PROFILE_DIR, assetPath, IN_FLATPAK, releaseVersion } from './paths';
+import { CONFIG_FILE, ensureDir, ICON_DIR, PROFILE_DIR, assetPath, IN_FLATPAK, releaseVersion, spawnSelf } from './paths';
 import { cleanUserAgent } from './runtime';
 import { inspectSite } from './inspect';
 
-function isRunning(id: string): boolean {
-  // Chromium's SingletonLock is a symlink "<hostname>-<pid>".
+/**
+ * Is the app running? Chromium keeps a "SingletonSocket" in the profile. If
+ * something accepts a connection on it, the app is up. This also works across
+ * Flatpak sandboxes, where the PID in SingletonLock belongs to another PID
+ * namespace and can't be checked.
+ */
+function isRunning(id: string): Promise<boolean> {
+  const dir = path.join(PROFILE_DIR, id);
   try {
-    const target = fs.readlinkSync(path.join(PROFILE_DIR, id, 'SingletonLock'));
+    const target = fs.readlinkSync(path.join(dir, 'SingletonLock'));
     const pid = parseInt(target.split('-').pop() ?? '', 10);
-    if (!pid) return false;
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
+    if (pid) { process.kill(pid, 0); return Promise.resolve(true); }
+  } catch { /* fall back to the socket */ }
+  const sock = path.join(dir, 'SingletonSocket');
+  if (!fs.existsSync(sock)) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    const c = net.connect(sock);
+    const done = (v: boolean) => { c.destroy(); resolve(v); };
+    c.once('connect', () => done(true));
+    c.once('error', () => done(false));
+    setTimeout(() => done(false), 500);
+  });
 }
 
 function iconDataUrl(file: string | null): string | null {
@@ -34,9 +45,9 @@ function iconDataUrl(file: string | null): string | null {
   }
 }
 
-function launch(id: string) {
-  const [cmd, ...args] = launcherCommand();
-  spawn(cmd, [...args, '--app', id], { detached: true, stdio: 'ignore' }).unref();
+async function launch(id: string): Promise<void> {
+  const err = await spawnSelf(['--app', id]);
+  if (err) throw new Error(`Could not start ${id}: ${err}`);
 }
 
 let lastHidList: { name: string; vendorId: number; productId: number }[] = [];
@@ -44,10 +55,10 @@ let lastHidList: { name: string; vendorId: number; productId: number }[] = [];
 function registerIpc(win: BrowserWindow) {
   const h = (ch: string, fn: (...a: any[]) => any) => ipcMain.handle(ch, (_e, ...a) => fn(...a));
 
-  h('apps:list', () => loadApps().map((a) => {
+  h('apps:list', () => Promise.all(loadApps().map(async (a) => {
     const r = resolveApp(a);
-    return { config: a, icon: iconDataUrl(r.iconPath), installed: isInstalled(a.id), running: isRunning(a.id) };
-  }));
+    return { config: a, icon: iconDataUrl(r.iconPath), installed: isInstalled(a.id), running: await isRunning(a.id) };
+  })));
 
   h('apps:inspect', (url: string) => inspectSite(url));
 
@@ -83,11 +94,11 @@ function registerIpc(win: BrowserWindow) {
     if (response === 0) return false;
     uninstallApp(id);
     removeApp(id);
-    if (response === 2 && !isRunning(id)) fs.rmSync(path.join(PROFILE_DIR, id), { recursive: true, force: true });
+    if (response === 2 && !(await isRunning(id))) fs.rmSync(path.join(PROFILE_DIR, id), { recursive: true, force: true });
     return true;
   });
 
-  h('apps:launch', (id: string) => { launch(id); return true; });
+  h('apps:launch', async (id: string) => { await launch(id); return true; });
   h('apps:install', (id: string) => {
     const cfg = loadApps().find((a) => a.id === id);
     if (!cfg) throw new Error(`Unknown app ${id}`);
