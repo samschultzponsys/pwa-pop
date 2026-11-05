@@ -1,0 +1,15 @@
+# PWA Pop / webtray: let the logged-in user open USB headsets over hidraw so
+# web softphones (Linkus, Teams, etc.) can use the headset call buttons via WebHID.
+# Installed to /usr/lib/udev/rules.d/ by the rpm/deb/pacman packages.
+# AppImage / Flatpak users: copy this file there manually (see README).
+
+# Yealink
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="6993", TAG+="uaccess"
+# Jabra (GN Audio)
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0b0e", TAG+="uaccess"
+# Poly / Plantronics
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="047f", TAG+="uaccess"
+# EPOS / Sennheiser Communications
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1395", TAG+="uaccess"
+# Logitech (Zone / H-series headsets)
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{product}=="*[Hh]eadset*", TAG+="uaccess"

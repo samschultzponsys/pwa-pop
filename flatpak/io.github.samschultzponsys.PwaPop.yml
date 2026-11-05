@@ -1,0 +1,58 @@
+# Flatpak build of PWA Pop. Packages the electron-builder "linux-unpacked"
+# output, so run `npm run dist` (or at least the tar.gz target) first:
+#
+#   flatpak-builder --user --install-deps-from=flathub --force-clean \
+#       --repo=repo build-dir io.github.samschultzponsys.PwaPop.yml
+#   flatpak build-bundle repo pwa-pop.flatpak io.github.samschultzponsys.PwaPop
+#
+# CI does exactly this (see .github/workflows/release.yml).
+app-id: io.github.samschultzponsys.PwaPop
+runtime: org.freedesktop.Platform
+runtime-version: '25.08'
+sdk: org.freedesktop.Sdk
+base: org.electronjs.Electron2.BaseApp
+base-version: '25.08'
+command: webtray
+separate-locales: false
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  - --device=dri
+  # Headsets (WebHID over /dev/hidraw*) and webcams. The host still needs the
+  # udev rule from build/70-webtray-hid.rules for hidraw access.
+  - --device=all
+  # Native notifications and the KDE / AppIndicator system tray.
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --own-name=org.kde.*
+  # Same config as the native packages, plus menu + autostart entries.
+  - --filesystem=xdg-config/webtray:create
+  - --filesystem=xdg-config/autostart:create
+  - --filesystem=xdg-data/applications:create
+  - --filesystem=xdg-download
+  - --env=ELECTRON_OZONE_PLATFORM_HINT=auto
+modules:
+  - name: pwa-pop
+    buildsystem: simple
+    sources:
+      - type: dir
+        path: ../release/linux-unpacked
+        dest: app
+      - type: file
+        path: webtray.sh
+      - type: file
+        path: io.github.samschultzponsys.PwaPop.desktop
+      - type: file
+        path: io.github.samschultzponsys.PwaPop.metainfo.xml
+      - type: dir
+        path: ../assets/icons
+        dest: icons
+    build-commands:
+      - cp -a app /app/webtray
+      - install -Dm755 webtray.sh /app/bin/webtray
+      - install -Dm644 io.github.samschultzponsys.PwaPop.desktop /app/share/applications/io.github.samschultzponsys.PwaPop.desktop
+      - install -Dm644 io.github.samschultzponsys.PwaPop.metainfo.xml /app/share/metainfo/io.github.samschultzponsys.PwaPop.metainfo.xml
+      - for s in 16 24 32 48 64 128 256 512; do install -Dm644 icons/${s}x${s}.png /app/share/icons/hicolor/${s}x${s}/apps/io.github.samschultzponsys.PwaPop.png; done

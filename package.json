@@ -1,0 +1,130 @@
+{
+  "name": "pwa-pop",
+  "productName": "PWA Pop",
+  "version": "1.0.0",
+  "description": "Run web apps (Outlook, Claude, Linkus…) as standalone, tray-resident desktop apps on Linux",
+  "main": "dist/main.js",
+  "license": "MIT",
+  "author": {
+    "name": "Sam Schultz",
+    "email": "sam.schultz2014@gmail.com"
+  },
+  "homepage": "https://github.com/samschultzponsys/pwa-pop",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/samschultzponsys/pwa-pop.git"
+  },
+  "desktopName": "webtray.desktop",
+  "scripts": {
+    "build": "tsc -p .",
+    "start": "npm run build && electron .",
+    "start:app": "npm run build && electron . --app",
+    "typecheck": "tsc -p . --noEmit",
+    "test": "npm run build && node --test test/*.test.js",
+    "dist": "npm run build && node scripts/dist.js",
+    "dist:appimage": "npm run build && node scripts/dist.js AppImage",
+    "dist:rpm": "npm run build && node scripts/dist.js rpm",
+    "version:bump": "node scripts/bump.js",
+    "icons": "node scripts/render-icons.js"
+  },
+  "dependencies": {
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "electron": "^45.2.2",
+    "electron-builder": "^26.18.0",
+    "typescript": "^5.9.3"
+  },
+  "build": {
+    "appId": "io.github.samschultzponsys.PwaPop",
+    "productName": "webtray",
+    "executableName": "webtray",
+    "artifactName": "pwa-pop-${env.RELEASE_VERSION}-${arch}.${ext}",
+    "copyright": "Copyright © 2026 Sam Schultz",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "renderer/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "build/70-webtray-hid.rules",
+        "to": "70-webtray-hid.rules"
+      }
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "rpm",
+        "deb",
+        "tar.gz",
+        "pacman"
+      ],
+      "category": "Network",
+      "icon": "assets/icons",
+      "executableName": "webtray",
+      "synopsis": "Web apps as tray-resident desktop apps",
+      "description": "PWA Pop runs web apps such as Outlook, Claude and the Yeastar Linkus softphone as standalone desktop apps with their own tray icon, notifications, unread badges, autostart and headset (WebHID) support.",
+      "maintainer": "Sam Schultz <sam.schultz2014@gmail.com>",
+      "vendor": "PWA Pop",
+      "executableArgs": [
+        "--ozone-platform-hint=auto",
+        "--enable-features=WaylandWindowDecorations"
+      ],
+      "desktop": {
+        "entry": {
+          "Name": "PWA Pop",
+          "GenericName": "Web App Manager",
+          "Comment": "Turn web apps into tray-resident desktop apps",
+          "StartupWMClass": "webtray",
+          "Keywords": "pwa;web;app;tray;outlook;softphone;",
+          "Categories": "Network;Utility;"
+        }
+      }
+    },
+    "rpm": {
+      "afterInstall": "build/after-install.sh",
+      "afterRemove": "build/after-remove.sh",
+      "depends": [
+        "libnotify",
+        "nss",
+        "gtk3",
+        "libXtst",
+        "xdg-utils",
+        "at-spi2-core",
+        "libuuid"
+      ],
+      "fpm": [
+        "--rpm-rpmbuild-define=_build_id_links none",
+        "--rpm-os=linux"
+      ]
+    },
+    "deb": {
+      "afterInstall": "build/after-install.sh",
+      "afterRemove": "build/after-remove.sh",
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libuuid1",
+        "libsecret-1-0"
+      ]
+    },
+    "pacman": {
+      "afterInstall": "build/after-install.sh",
+      "afterRemove": "build/after-remove.sh"
+    },
+    "appImage": {},
+    "publish": null
+  }
+}

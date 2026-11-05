@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'">
+  <title>PWA Pop</title>
+  <link rel="stylesheet" href="manager.css">
+</head>
+<body>
+  <header class="top">
+    <img src="../assets/icon.svg" alt="" class="logo">
+    <div class="brand">
+      <h1>PWA Pop</h1>
+      <p>Web apps that live in your tray</p>
+    </div>
+    <div class="spacer"></div>
+    <button id="btn-config" class="ghost" title="Open apps.yaml in your editor">Edit apps.yaml</button>
+    <button id="btn-add" class="primary">+ Add app</button>
+  </header>
+
+  <main>
+    <section id="empty" class="empty hidden">
+      <img src="../assets/icon.svg" alt="">
+      <h2>No apps yet</h2>
+      <p>Paste the address of any web app (Outlook, Claude, your PBX…) and PWA Pop turns it into a tray app.</p>
+      <button class="primary" data-action="add">Add your first app</button>
+    </section>
+    <section id="list" class="list"></section>
+  </main>
+
+  <footer>
+    <span id="version"></span>
+    <span class="sep">·</span>
+    <span id="config-path"></span>
+    <span class="spacer"></span>
+    <button id="btn-manager-entry" class="link hidden">Add PWA Pop to the app menu</button>
+  </footer>
+
+  <dialog id="editor">
+    <form id="form" method="dialog">
+      <h2 id="editor-title">Add app</h2>
+
+      <div class="url-row">
+        <label class="grow">Web address
+          <input id="f-url" type="text" placeholder="https://outlook.office.com/mail" required autocomplete="off" spellcheck="false">
+        </label>
+        <button type="button" id="btn-fetch" class="ghost">Fetch details</button>
+      </div>
+      <p class="hint">Paste the normal site address. If the site publishes a web app manifest (most PWAs do), its name, start page and icon are used automatically. Chrome-specific “install” links aren’t needed.</p>
+      <ul id="notes" class="notes"></ul>
+
+      <div class="identity">
+        <div class="icon-pick">
+          <canvas id="icon-canvas" width="256" height="256"></canvas>
+          <button type="button" id="btn-icon" class="link">Change icon…</button>
+        </div>
+        <div class="grow fields">
+          <label>Name <input id="f-name" type="text" required></label>
+          <label>ID <span class="muted">(used for <code>webtray --app &lt;id&gt;</code>)</span>
+            <input id="f-id" type="text" required pattern="[a-z0-9][a-z0-9_\-]*" spellcheck="false">
+          </label>
+        </div>
+      </div>
+
+      <fieldset>
+        <legend>Behaviour</legend>
+        <label class="check"><input type="checkbox" id="f-autostart"> Start automatically when I log in</label>
+        <label class="check"><input type="checkbox" id="f-hidden"> Start hidden in the tray</label>
+        <label class="check"><input type="checkbox" id="f-menu" checked> Add to the application menu</label>
+        <label class="check"><input type="checkbox" id="f-urgent"> Urgent notifications (stay on screen until dismissed — good for calls)</label>
+        <label class="check"><input type="checkbox" id="f-raise"> Pop the window up when a notification arrives</label>
+        <label class="check"><input type="checkbox" id="f-resume"> Reload after the computer wakes from sleep</label>
+        <label class="check"><input type="checkbox" id="f-cert"> Accept self-signed certificates (on-premise servers only)</label>
+      </fieldset>
+
+      <details>
+        <summary>Allowed origins &amp; permissions</summary>
+        <p class="hint">Pages on these origins stay inside the app and get microphone, camera, notifications and clipboard access automatically. Everything else opens in your default browser. Use <code>https://*.example.com</code> for subdomains.</p>
+        <textarea id="f-origins" rows="5" spellcheck="false"></textarea>
+        <label>Extra permissions <span class="muted">(comma separated, e.g. <code>display-capture, geolocation</code>)</span>
+          <input id="f-perms" type="text" spellcheck="false">
+        </label>
+      </details>
+
+      <details id="hid-section">
+        <summary>Headset / HID devices</summary>
+        <p class="hint">For softphones such as Linkus: the headset is selected automatically and its call buttons keep working after restarts.</p>
+        <div id="hid-list" class="hid-list"></div>
+        <div class="row">
+          <button type="button" id="btn-hid" class="ghost">Detect connected devices</button>
+          <span id="hid-status" class="muted"></span>
+        </div>
+        <div id="hid-found" class="hid-found"></div>
+      </details>
+
+      <p id="error" class="error hidden"></p>
+
+      <div class="actions">
+        <button type="button" id="btn-cancel" class="ghost">Cancel</button>
+        <button type="submit" id="btn-save" class="primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="manager.js"></script>
+</body>
+</html>

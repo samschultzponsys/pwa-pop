@@ -1,0 +1,54 @@
+# ~/.config/webtray/apps.yaml — example configuration for PWA Pop (webtray)
+#
+# Every entry becomes its own desktop app with a tray icon:
+#   webtray --app <id>          run it
+#   webtray --install <id>      add it to the app menu (+ autostart)
+#
+# Options (all optional except id + url):
+#   name                  Display name (menu, tray tooltip, notifications)
+#   url                   Start page
+#   icon                  PNG/SVG path; default: ~/.config/webtray/icons/<id>.png, else the site favicon
+#   start_hidden          Start in the tray without showing the window
+#   autostart             --install also creates ~/.config/autostart/webtray-<id>.desktop
+#   allowed_origins       Origins that stay in-app and get mic/camera/notifications/clipboard.
+#                         Default: the origin of url. "https://*.example.com" matches subdomains.
+#   hid_devices           WebHID devices to auto-select, e.g. [{ vendorId: 0x6993 }] or
+#                         [{ vendorId: 0x0b0e, productId: 0x0245 }]
+#   extra_permissions     More Chromium permissions to grant, e.g. [display-capture, geolocation]
+#   urgent_notifications  Critical urgency: notifications stay until dismissed (incoming calls)
+#   raise_on_notification Show the window whenever the page posts a notification
+#   badge_regex           Regex with one group for the unread count (default: \((\d+)\))
+#   reload_on_resume      Reload after the computer wakes from sleep
+#   ignore_certificate_errors  Accept self-signed certs on allowed origins (on-prem servers)
+#   user_agent            Override the (already cleaned, Chrome-like) user agent
+#   width / height        Initial window size (later remembered automatically)
+
+- id: linkus
+  name: Linkus
+  url: https://pbx.example.com/
+  icon: ~/.config/webtray/icons/linkus.png
+  start_hidden: true
+  autostart: true
+  allowed_origins: ["https://pbx.example.com"]
+  hid_devices: [{ vendorId: 0x6993 }]   # auto-select the Yealink WH64 headset
+  urgent_notifications: true            # incoming-call toasts stay on screen
+  reload_on_resume: true                # re-register the SIP connection after sleep
+
+- id: outlook
+  name: Outlook
+  url: https://outlook.office.com/mail
+  autostart: true
+  start_hidden: true
+  allowed_origins:
+    - https://outlook.office.com
+    - https://outlook.office365.com
+    - https://outlook.cloud.microsoft
+    - https://*.office.com
+    - https://login.microsoftonline.com
+    - https://login.microsoft.com
+    - https://login.live.com
+
+- id: claude
+  name: Claude
+  url: https://claude.ai
+  allowed_origins: ["https://claude.ai", "https://*.claude.ai", "https://accounts.google.com"]
