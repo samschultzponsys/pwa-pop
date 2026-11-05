@@ -163,6 +163,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # GitHub refuses to let the Actions token create a tag on a commit
+          # whose workflow files differ from main's. An optional RELEASE_TOKEN
+          # secret (fine-grained PAT: Contents + Workflows, read/write) avoids that.
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
 
       - uses: actions/download-artifact@v4
         with:
@@ -205,7 +209,11 @@ jobs:
             echo "Tag v$V already exists: $(git ls-remote --tags origin "refs/tags/v$V")"
           else
             git tag "v$V" "$SHA"
-            git push origin "refs/tags/v$V"
+            if ! git push origin "refs/tags/v$V"; then
+              echo "::error::Could not create tag v$V. The commit's workflow file differs from main's, and the Actions token may not create that tag."
+              echo "::error::Fix: push the tag yourself (git tag v$V $SHA && git push origin v$V) and re-run, or add a RELEASE_TOKEN secret."
+              exit 1
+            fi
           fi
 
       - name: Publish release
