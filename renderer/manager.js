@@ -80,7 +80,8 @@ function card({ config: c, icon, baseIcon, installed, running, memoryMb }) {
     ),
     el('div', { class: 'toggles' }, toggle('Autostart', 'autostart'), toggle('Start hidden', 'start_hidden')),
     el('div', { class: 'buttons' },
-      el('button', { class: 'primary', onclick: () => guard(async () => { await api.launch(c.id); toast(`Starting ${c.name}…`); setTimeout(refresh, 2500); }) }, running ? 'Show' : 'Open'),
+      el('button', { class: 'primary', onclick: () => guard(async () => { await api.launch(c.id); toast(running ? `Showing ${c.name}` : `Starting ${c.name}…`); setTimeout(refresh, 2500); }) }, running ? 'Show' : 'Open'),
+      running ? el('button', { title: 'Quit the app (it leaves the tray)', onclick: () => guard(async () => { await api.quit(c.id); toast(`Quitting ${c.name}…`); setTimeout(refresh, 1500); }) }, 'Quit') : null,
       el('button', { onclick: () => openEditor(c, baseIcon) }, 'Edit'),
       el('button', { title: 'Make a second copy with its own login', onclick: () => openDuplicate(c, baseIcon) }, 'Duplicate'),
       installed.menu
@@ -423,6 +424,7 @@ async function openEditor(cfg, iconUrl, mode = cfg ? 'edit' : 'add') {
   $('#f-unread').checked = !!cfg?.notify_on_unread;
   $('#f-resume').checked = !!cfg?.reload_on_resume;
   $('#f-keys').checked = !!cfg?.pass_shortcuts;
+  $('#f-mintray').checked = !!cfg?.minimize_to_tray;
   $('#f-cert').checked = !!cfg?.ignore_certificate_errors;
   $('#f-memlimit').value = cfg?.memory_limit_mb || '';
   $('#f-calls').checked = !!(cfg?.handle_schemes || []).length;
@@ -524,6 +526,7 @@ async function save(ev) {
   opt('notify_on_unread', $('#f-unread').checked);
   opt('reload_on_resume', $('#f-resume').checked);
   opt('pass_shortcuts', $('#f-keys').checked);
+  opt('minimize_to_tray', $('#f-mintray').checked);
   opt('ignore_certificate_errors', $('#f-cert').checked);
   opt('icon_auto', iconAuto);
   if ($('#f-calls').checked) cfg.handle_schemes = ['tel', 'callto', 'sip']; else delete cfg.handle_schemes;
@@ -577,6 +580,8 @@ $('#form').addEventListener('submit', save);
 $('#btn-config').addEventListener('click', () => api.openConfig());
 $('#btn-manager-entry').addEventListener('click', () => guard(async () => { await api.installManager(); toast('PWA Pop added to the application menu'); }));
 window.addEventListener('focus', refresh);
+// Keep "running" / Open / Show / Quit current while the manager is open.
+setInterval(() => { if (!document.hidden && !$('#editor').open) refresh().catch(() => {}); }, 4000);
 
 // --------------------------------------------------------------- updates
 let lastUpdate = null;

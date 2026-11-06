@@ -12,7 +12,7 @@ import * as path from 'path';
 import { app } from 'electron';
 import { AppConfig, getApp, ID_RE, loadApps, upsertApp } from './config';
 import { autostartFile, desktopFile, desktopId, installApp, isInstalled, migrateDesktopEntries, uninstallApp } from './desktop';
-import { CONFIG_FILE, ensureDir, PROFILE_DIR, releaseVersion } from './paths';
+import { CONFIG_FILE, ensureDir, PROFILE_DIR, releaseVersion, writeVersionMarker } from './paths';
 
 const HELP = `PWA Pop (webtray) — run web apps as tray-resident desktop apps
 
@@ -24,6 +24,7 @@ Usage:
   webtray --list                  Show configured apps
   webtray --add <url> [--id <id>] [--name <name>] [--autostart] [--start-hidden]
                                   Add an app to apps.yaml
+  webtray --restart-all           Ask running apps to restart (after an update)
   webtray --check-update          Check GitHub for a newer PWA Pop
   webtray --update                Download, verify and install it (AppImage, rpm, deb, pacman)
   webtray --version | --help
@@ -142,6 +143,14 @@ async function updateCli(install: boolean): Promise<void> {
 }
 
 function main() {
+  if (flag('--restart-all')) {
+    // Run by the update commands right after installing: tell every running
+    // PWA Pop app to restart onto this version (they wait for a quiet moment).
+    writeVersionMarker(true);
+    out(`Asked running PWA Pop apps to restart onto ${releaseVersion()}. They restart when you're not on a call or typing in them.`);
+    app.exit(0);
+    return;
+  }
   if (flag('--update') || flag('--check-update')) {
     app.setPath('userData', path.join(PROFILE_DIR, '_cli'));
     app.whenReady()
@@ -171,6 +180,9 @@ function main() {
     app.commandLine.appendSwitch('class', desktopId(cfg.id));
     if (!app.requestSingleInstanceLock({ id: cfg.id })) { app.exit(0); return; }
     try { migrateDesktopEntries([cfg]); } catch { /* best effort */ }
+    // We got the lock, so this app wasn't running: nothing to quit.
+    if (flag('--quit')) { app.exit(0); return; }
+    writeVersionMarker();
     const hidden = flag('--hidden') || cfg.start_hidden;
     app.whenReady().then(async () => {
       const { AppRuntime } = await import('./runtime');
@@ -189,6 +201,7 @@ function main() {
   app.commandLine.appendSwitch('class', 'webtray');
   if (!app.requestSingleInstanceLock()) { app.exit(0); return; }
   try { migrateDesktopEntries(loadApps()); } catch { /* best effort */ }
+  writeVersionMarker();
   app.whenReady().then(async () => {
     const { runManager } = await import('./manager');
     await runManager();

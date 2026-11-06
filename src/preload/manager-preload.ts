@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('webtray', {
   save: call('apps:save'),
   remove: call('apps:remove'),
   launch: call('apps:launch'),
+  quit: call('apps:quit'),
   install: call('apps:install'),
   uninstall: call('apps:uninstall'),
   pickIcon: call('app:pickIcon'),

@@ -11,9 +11,9 @@ import { defaultIcon, imageFromBuffer, imageHasTransparency, loadIconFile, style
 import { isInstalled, stableIcon } from './desktop';
 import { NotificationBridge } from './notifications';
 import { isSafeExternal, looksLikeAuth, OriginMatcher } from './origins';
-import { assetPath, ensureDir, ICON_DIR, IN_FLATPAK, spawnSelf } from './paths';
+import { assetPath, ensureDir, ICON_DIR, IN_FLATPAK, readVersionMarker, releaseVersion, spawnSelf } from './paths';
 import { StateStore } from './state';
-import { backgroundCheck, UpdateInfo } from './updater';
+import { backgroundCheck, isNewer, UpdateInfo } from './updater';
 
 /** Permissions granted to allowed origins unless the config adds more. */
 const BASE_PERMISSIONS = [
@@ -86,6 +86,7 @@ export class AppRuntime {
     this.setupLifecycle();
     this.scheduleUpdateChecks();
     this.watchMemory();
+    this.watchForNewVersion();
     ipcMain.on('wt:badge', (_e, count: number) => this.onAppBadge(Number(count)));
     this.ses.serviceWorkers.on('running-status-changed', ({ versionId, runningStatus }) => {
       if (runningStatus !== 'running') return;
@@ -207,6 +208,36 @@ export class AppRuntime {
     };
     setInterval(tick, 60_000);
     setTimeout(tick, 15_000);
+  }
+
+  // ------------------------------------------------ restart after an update
+  private readonly startedAt = Date.now();
+  private updatePending: string | null = null;
+
+  /**
+   * After an update, the first new-version process (manager, app or the
+   * `--restart-all` step of the update commands) records its version. Older
+   * running apps then restart onto it at a quiet moment: not during a call
+   * and not while you're typing.
+   */
+  private watchForNewVersion() {
+    const tick = () => {
+      if (this.quitting) return;
+      const m = readVersionMarker();
+      if (!m) return;
+      const newer = isNewer(m.version, releaseVersion());
+      const forced = !!m.restartAll && m.at > this.startedAt;
+      if (!newer && !forced) return;
+      if (this.updatePending !== m.version) {
+        this.updatePending = m.version;
+        this.refreshMenu();
+      }
+      if (this.busy() || (this.win.isVisible() && this.win.isFocused())) { debug(`update ${m.version} waiting: app in use`); return; }
+      console.warn(`[webtray:${this.cfg.id}] restarting onto PWA Pop ${m.version}`);
+      this.restart();
+    };
+    setInterval(tick, 30_000);
+    setTimeout(tick, 5_000);
   }
 
   /** Relaunch this app process, keeping it hidden if it is hidden now. */
@@ -393,6 +424,9 @@ export class AppRuntime {
         e.preventDefault();
         this.hideAll();
       }
+    });
+    win.on('minimize', () => {
+      if (this.cfg.minimize_to_tray) this.hideAll();
     });
     win.on('show', () => this.refreshMenu());
     win.on('hide', () => this.refreshMenu());
@@ -662,6 +696,8 @@ export class AppRuntime {
         click: (item) => { this.state.update({ muted: item.checked }, true); this.refreshMenu(); },
       },
       { type: 'separator' },
+      ...(this.updatePending
+        ? [{ label: `Restart to finish updating (${this.updatePending})`, click: () => this.restart() }] : []),
       ...(this.update?.available
         ? [{ label: `Update PWA Pop to ${this.update.latest}…`, click: () => this.openManager() }] : []),
       { label: 'Manage apps…', click: () => this.openManager() },
@@ -725,6 +761,7 @@ export class AppRuntime {
   private setupLifecycle() {
     app.on('second-instance', (_e, argv) => {
       debug(`second-instance ${argv.join(' ')}`);
+      if (argv.includes('--quit')) { this.quit(); return; }
       const call = this.cfg.handle_schemes?.length ? findCallLink(argv, this.cfg.handle_schemes) : null;
       if (call) { void this.dial(call); return; }
       if (argv.includes('--hidden')) return;

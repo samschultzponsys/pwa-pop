@@ -13,23 +13,17 @@ import { COLOR_ORDER } from './iconstyle';
 import { autoCheckEnabled, checkForUpdates, downloadUpdate, installUpdate, setAutoCheck, updateGuide } from './updater';
 
 /**
- * Is the app running? Chromium keeps a "SingletonSocket" in the profile. If
- * something accepts a connection on it, the app is up. This also works across
- * Flatpak sandboxes, where the PID in SingletonLock belongs to another PID
- * namespace and can't be checked.
+ * Is the app running? Chromium keeps a "SingletonSocket" in the profile; if
+ * something accepts a connection on it, the app is up. (The PID in
+ * SingletonLock is useless inside Flatpak: every sandbox has its own PIDs.)
  */
 function isRunning(id: string): Promise<boolean> {
-  const dir = path.join(PROFILE_DIR, id);
-  try {
-    const target = fs.readlinkSync(path.join(dir, 'SingletonLock'));
-    const pid = parseInt(target.split('-').pop() ?? '', 10);
-    if (pid) { process.kill(pid, 0); return Promise.resolve(true); }
-  } catch { /* fall back to the socket */ }
-  const sock = path.join(dir, 'SingletonSocket');
+  const sock = path.join(PROFILE_DIR, id, 'SingletonSocket');
   if (!fs.existsSync(sock)) return Promise.resolve(false);
   return new Promise((resolve) => {
     const c = net.connect(sock);
-    const done = (v: boolean) => { c.destroy(); resolve(v); };
+    let settled = false;
+    const done = (v: boolean) => { if (settled) return; settled = true; c.destroy(); resolve(v); };
     c.once('connect', () => done(true));
     c.once('error', () => done(false));
     setTimeout(() => done(false), 500);
@@ -133,6 +127,12 @@ function registerIpc(win: BrowserWindow) {
   });
 
   h('apps:launch', async (id: string) => { await launch(id); return true; });
+  h('apps:quit', async (id: string) => {
+    // A second instance with --quit tells the running one to quit.
+    const err = await spawnSelf(['--app', id, '--quit']);
+    if (err) throw new Error(`Could not quit ${id}: ${err}`);
+    return true;
+  });
   h('apps:install', (id: string) => {
     const cfg = loadApps().find((a) => a.id === id);
     if (!cfg) throw new Error(`Unknown app ${id}`);
@@ -167,6 +167,10 @@ function registerIpc(win: BrowserWindow) {
   h('update:check', (force: boolean) => checkForUpdates(!!force));
   h('update:install', () => installUpdate((p) => {
     if (!win.isDestroyed()) { win.setProgressBar(p); win.webContents.send('update:progress', p); }
+  }).then(async (msg) => {
+    // Start the freshly installed version once so running apps restart onto it.
+    await spawnSelf(['--restart-all']);
+    return msg;
   }).finally(() => { if (!win.isDestroyed()) win.setProgressBar(-1); }));
   h('update:guide', () => updateGuide());
   h('update:download', () => downloadUpdate((p) => {

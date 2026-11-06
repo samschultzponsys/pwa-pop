@@ -106,7 +106,7 @@ export function spawnSelf(args: string[]): Promise<string | null> {
   // Keep running unsandboxed children if we were started that way.
   if (process.argv.includes('--no-sandbox')) args = [...args, '--no-sandbox'];
   if (IN_FLATPAK) {
-    attempts.push(['flatpak-spawn', '--', '/app/bin/webtray', ...args]);
+    attempts.push(['flatpak-spawn', '--latest-version', '--', '/app/bin/webtray', ...args]);
     attempts.push(['/app/bin/webtray', ...args]);
   } else {
     attempts.push([...launcherCommand(), ...args]);
@@ -143,4 +143,29 @@ export function spawnSelf(args: string[]): Promise<string | null> {
     };
     tryNext(0, null);
   });
+}
+
+// ------------------------------------------------- version marker (updates)
+
+/** Shared file where every starting PWA Pop process records its version. */
+export const VERSION_MARKER = path.join(STATE_DIR, '_version.json');
+
+export interface VersionMarker { version: string; at: number; restartAll?: boolean }
+
+export function readVersionMarker(): VersionMarker | null {
+  try { return JSON.parse(fs.readFileSync(VERSION_MARKER, 'utf8')); } catch { return null; }
+}
+
+/** Record this process's version (never downgrade the marker). */
+export function writeVersionMarker(restartAll = false): void {
+  const mine = releaseVersion();
+  const cur = readVersionMarker();
+  const num = (v: string) => v.split('.').map(Number);
+  const newer = (a: string, b: string) => { const [x, y] = num(a), [p, q] = num(b); return x !== p ? x > p : y > q; };
+  if (cur && newer(cur.version, mine) && !restartAll) return;
+  try {
+    ensureDir(STATE_DIR);
+    fs.writeFileSync(VERSION_MARKER + '.tmp', JSON.stringify({ version: mine, at: Date.now(), restartAll } satisfies VersionMarker));
+    fs.renameSync(VERSION_MARKER + '.tmp', VERSION_MARKER);
+  } catch { /* best effort */ }
 }

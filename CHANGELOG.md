@@ -9,6 +9,28 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [2.5] - 2026-11-06
+
+### Added
+- **Apps restart themselves after an update.** Every PWA Pop process records
+  its version when it starts. Older running apps see that and restart onto the
+  new version at a quiet moment: not during a call, and not while you're using
+  the window. Hidden apps stay hidden. Until then, the tray menu shows
+  "Restart to finish updating". The update commands in "How to update" (and
+  the Install update button) end with the new `webtray --restart-all`, so
+  everything switches over right after updating.
+- **Quit** button on running apps in the manager, and the cards' running
+  state refreshes every few seconds.
+- **Minimize to the tray** option (`minimize_to_tray`): the minimize button
+  hides the app to its tray icon instead of the taskbar.
+
+### Fixed
+- Flatpak: the manager nearly always showed apps as running ("Show"), even
+  after quitting. It compared process IDs from other sandboxes, where small
+  PIDs always exist. It now checks the app's singleton socket instead.
+- Flatpak: restarts (memory limit, updates) now start the newest installed
+  version (`flatpak-spawn --latest-version`) rather than the running one.
+
 ## [2.4] - 2026-11-06
 
 ### Added

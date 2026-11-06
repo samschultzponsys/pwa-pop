@@ -135,7 +135,7 @@ test('update one-liners fetch the right package and verify it', () => {
   const f = curlCommand('flatpak', '2.2');
   assert.match(f, /releases\/download\/v2\.2\/pwa-pop-2\.2-x86_64\.flatpak/);
   assert.match(f, /SHA256SUMS\.txt \| grep " pwa-pop-2\.2-x86_64\.flatpak\$" \| sha256sum -c -/);
-  assert.match(f, /&& flatpak install --user \.\/pwa-pop-2\.2-x86_64\.flatpak$/);
-  assert.match(curlCommand('rpm', '2.2', { rpmTool: 'dnf' }), /sudo dnf install \.\/pwa-pop-2\.2-x86_64\.rpm$/);
+  assert.match(f, /&& flatpak install -y --user \.\/pwa-pop-2\.2-x86_64\.flatpak && flatpak run --branch=stable io\.github\.samschultzponsys\.PwaPop --restart-all$/);
+  assert.match(curlCommand('rpm', '2.2', { rpmTool: 'dnf' }), /sudo dnf install \.\/pwa-pop-2\.2-x86_64\.rpm && webtray --restart-all$/);
   assert.match(curlCommand('pacman', '2.2'), /pwa-pop-2\.2-x64\.pacman/);
 });

@@ -62,6 +62,8 @@ export interface AppConfig {
    * MeshCentral, web terminals).
    */
   pass_shortcuts?: boolean;
+  /** The minimize button hides the app to its tray icon instead of the taskbar. */
+  minimize_to_tray?: boolean;
   /** CSS selectors for click-to-call, taught via the right-click menu. */
   dial_input?: string;
   dial_button?: string;

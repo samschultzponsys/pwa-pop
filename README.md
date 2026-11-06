@@ -6,7 +6,7 @@
 Run Outlook, Claude, the Yeastar Linkus softphone or any other site as a real desktop app,
 with its own window, tray icon, login, notifications, unread badge, autostart and headset buttons.</p>
 
-<p align="center">Current version: <b>2.4</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
+<p align="center">Current version: <b>2.5</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
 
 ---
 
@@ -108,6 +108,7 @@ webtray --install <id>           Write ~/.local/share/applications/webtray-<id>.
 webtray --uninstall <id>         Remove both entries
 webtray --list                   Show configured apps and what is installed
 webtray --add <url> [--id x] [--name "X"] [--autostart] [--start-hidden]
+webtray --restart-all            Restart running apps (they wait until you're not on a call)
 webtray --check-update           Check for a newer PWA Pop
 webtray --update                 Download, verify and install it
 webtray --version
@@ -163,6 +164,7 @@ you and keeps your comments. A full, commented example is in
 | `dial_input`, `dial_button`, `dial_open` | – | CSS selectors for click-to-call, set from the app's right-click menu ("Use for click-to-call"). |
 | `pass_shortcuts` | `false` | Send every key combination to the page (remote desktop tools like MeshCentral, web terminals) instead of PWA Pop's Ctrl+W/R, F5, F12, Alt+←/→ and zoom shortcuts. |
 | `notify_on_unread` | `false` | Show a notification whenever the unread count goes up. For sites that only notify through Chrome's web push, like the new Outlook. |
+| `minimize_to_tray` | `false` | The minimize button hides the app to its tray icon instead of the taskbar. |
 | `memory_limit_mb` | – | Reload, then restart, the app when it uses more than this many MB. Never during calls or while you're using it. |
 | `icon_color` | – | Recolour the icon: `blue`, `green`, `purple`, `orange`, `teal`, `pink`, `red`, `yellow`. Used for duplicates. |
 | `icon_label` | – | 1–2 characters in a coloured chip on the icon's top-left corner (e.g. `2` or `W`). |
@@ -278,31 +280,31 @@ installed. Running apps switch to the new version when you restart them
 ### Updating from a terminal
 
 Each command downloads the right package from the release, checks it against
-`SHA256SUMS.txt` and installs it. Replace `2.2` with the version you want; the
+`SHA256SUMS.txt` and installs it. The last step restarts running apps onto the new version. Replace `2.2` with the version you want; the
 manager's **How to update** fills in the current one for you.
 
 Flatpak:
 
 ```bash
-cd ~/Downloads && curl -fL -o pwa-pop-2.2-x86_64.flatpak https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/pwa-pop-2.2-x86_64.flatpak && curl -fsSL https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/SHA256SUMS.txt | grep " pwa-pop-2.2-x86_64.flatpak$" | sha256sum -c - && flatpak install --user ./pwa-pop-2.2-x86_64.flatpak
+cd ~/Downloads && curl -fL -o pwa-pop-2.2-x86_64.flatpak https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/pwa-pop-2.2-x86_64.flatpak && curl -fsSL https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/SHA256SUMS.txt | grep " pwa-pop-2.2-x86_64.flatpak$" | sha256sum -c - && flatpak install -y --user ./pwa-pop-2.2-x86_64.flatpak && flatpak run --branch=stable io.github.samschultzponsys.PwaPop --restart-all
 ```
 
 Fedora / RHEL (rpm):
 
 ```bash
-cd /tmp && curl -fL -o pwa-pop-2.2-x86_64.rpm https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/pwa-pop-2.2-x86_64.rpm && curl -fsSL https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/SHA256SUMS.txt | grep " pwa-pop-2.2-x86_64.rpm$" | sha256sum -c - && sudo dnf install ./pwa-pop-2.2-x86_64.rpm
+cd /tmp && curl -fL -o pwa-pop-2.2-x86_64.rpm https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/pwa-pop-2.2-x86_64.rpm && curl -fsSL https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/SHA256SUMS.txt | grep " pwa-pop-2.2-x86_64.rpm$" | sha256sum -c - && sudo dnf install ./pwa-pop-2.2-x86_64.rpm && webtray --restart-all
 ```
 
 Debian / Ubuntu (deb):
 
 ```bash
-cd /tmp && curl -fL -o pwa-pop-2.2-amd64.deb https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/pwa-pop-2.2-amd64.deb && curl -fsSL https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/SHA256SUMS.txt | grep " pwa-pop-2.2-amd64.deb$" | sha256sum -c - && sudo apt install ./pwa-pop-2.2-amd64.deb
+cd /tmp && curl -fL -o pwa-pop-2.2-amd64.deb https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/pwa-pop-2.2-amd64.deb && curl -fsSL https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/SHA256SUMS.txt | grep " pwa-pop-2.2-amd64.deb$" | sha256sum -c - && sudo apt install ./pwa-pop-2.2-amd64.deb && webtray --restart-all
 ```
 
 Arch (pacman):
 
 ```bash
-cd /tmp && curl -fL -o pwa-pop-2.2-x64.pacman https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/pwa-pop-2.2-x64.pacman && curl -fsSL https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/SHA256SUMS.txt | grep " pwa-pop-2.2-x64.pacman$" | sha256sum -c - && sudo pacman -U ./pwa-pop-2.2-x64.pacman
+cd /tmp && curl -fL -o pwa-pop-2.2-x64.pacman https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/pwa-pop-2.2-x64.pacman && curl -fsSL https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/SHA256SUMS.txt | grep " pwa-pop-2.2-x64.pacman$" | sha256sum -c - && sudo pacman -U ./pwa-pop-2.2-x64.pacman && webtray --restart-all
 ```
 
 ### Maintainer setup for the Flatpak repository (one time)

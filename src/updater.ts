@@ -315,20 +315,21 @@ export function curlCommand(kind: InstallKind, v: string, opts: { rpmTool?: stri
   if (!name) return null;
   const base = `https://github.com/${REPO}/releases/download/v${v}`;
   const fetch = `curl -fL -o ${name} ${base}/${name} && curl -fsSL ${base}/SHA256SUMS.txt | grep " ${name}$" | sha256sum -c -`;
+  // The last step starts the new version once, which makes running apps restart onto it.
   switch (kind) {
-    case 'flatpak': return `cd ~/Downloads && ${fetch} && flatpak install --user ./${name}`;
+    case 'flatpak': return `cd ~/Downloads && ${fetch} && flatpak install -y --user ./${name} && flatpak run --branch=stable ${FLATPAK_ID} --restart-all`;
     case 'rpm': {
       const t = opts.rpmTool ?? 'dnf';
       const inst = t === 'dnf' ? `sudo dnf install ./${name}` : t === 'zypper' ? `sudo zypper install ./${name}` : `sudo rpm -U ./${name}`;
-      return `cd /tmp && ${fetch} && ${inst}`;
+      return `cd /tmp && ${fetch} && ${inst} && webtray --restart-all`;
     }
-    case 'deb': return `cd /tmp && ${fetch} && sudo apt install ./${name}`;
-    case 'pacman': return `cd /tmp && ${fetch} && sudo pacman -U ./${name}`;
+    case 'deb': return `cd /tmp && ${fetch} && sudo apt install ./${name} && webtray --restart-all`;
+    case 'pacman': return `cd /tmp && ${fetch} && sudo pacman -U ./${name} && webtray --restart-all`;
     case 'appimage': {
       const target = opts.appImage ?? '~/Applications/PWA-Pop.AppImage';
-      return `cd /tmp && ${fetch} && chmod +x ${name} && mv ${name} "${target}"`;
+      return `cd /tmp && ${fetch} && chmod +x ${name} && mv ${name} "${target}" && "${target}" --restart-all`;
     }
-    case 'manual': return `cd /tmp && ${fetch} && tar -xzf ${name} --strip-components=1 -C "${opts.dir ?? '.'}"`;
+    case 'manual': return `cd /tmp && ${fetch} && tar -xzf ${name} --strip-components=1 -C "${opts.dir ?? '.'}" && "${opts.dir ?? '.'}/webtray" --restart-all`;
     default: return null;
   }
 }
