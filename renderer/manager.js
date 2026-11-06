@@ -581,7 +581,7 @@ $('#btn-config').addEventListener('click', () => api.openConfig());
 $('#btn-manager-entry').addEventListener('click', () => guard(async () => { await api.installManager(); toast('PWA Pop added to the application menu'); }));
 window.addEventListener('focus', refresh);
 // Keep "running" / Open / Show / Quit current while the manager is open.
-setInterval(() => { if (!document.hidden && !$('#editor').open) refresh().catch(() => {}); }, 4000);
+setInterval(() => { if (!document.hidden && document.hasFocus() && !$('#editor').open) refresh().catch(() => {}); }, 10000);
 
 // --------------------------------------------------------------- updates
 let lastUpdate = null;

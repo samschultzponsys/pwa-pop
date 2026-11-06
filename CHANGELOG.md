@@ -9,6 +9,20 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [2.8] - 2026-11-06
+
+### Added
+- **"Send test notification"** in every app's tray menu, to check that
+  PWA Pop's popups reach the desktop.
+- More detail with `WEBTRAY_DEBUG=1`: version and key settings at start, where
+  the unread count comes from (app badge, page title or folder list), every
+  change in the count, and every notification shown, skipped or failed.
+
+### Changed
+- The manager checks which apps are running every 10 seconds, and only while
+  its window is focused. This avoids filling app logs with "Invalid socket
+  message" lines.
+
 ## [2.7] - 2026-11-06
 
 ### Added

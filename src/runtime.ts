@@ -98,6 +98,7 @@ export class AppRuntime {
       }
     });
     this.watchConfig();
+    debug(`PWA Pop ${releaseVersion()} running ${this.cfg.id}: notify_on_unread=${!!this.cfg.notify_on_unread} minimize_to_tray=${!!this.cfg.minimize_to_tray} urgent=${!!this.cfg.urgent_notifications} session=${process.env.XDG_SESSION_TYPE ?? '?'}`);
     this.ses.serviceWorkers.on('running-status-changed', ({ versionId, runningStatus }) => {
       if (runningStatus !== 'running') return;
       const sw = this.ses.serviceWorkers.getWorkerFromVersionID(versionId);
@@ -259,6 +260,8 @@ export class AppRuntime {
    * new Outlook's "Inbox, 3 unread" (aria-label/title of the folder entry).
    */
   private unreadWatcher: NodeJS.Timeout | null = null;
+  private domCountSeen = false;
+  private domCountMissLogged = false;
 
   private watchUnreadInPage() {
     if (!this.cfg.notify_on_unread || this.unreadWatcher) return;
@@ -277,7 +280,13 @@ export class AppRuntime {
       if (parseUnread(this.win.webContents.getTitle(), this.cfg.badge_regex) > 0) return;
       try {
         const n: number = await this.win.webContents.executeJavaScript(script, true);
-        if (n >= 0) this.setUnread(n);
+        if (n >= 0) {
+          if (!this.domCountSeen) { this.domCountSeen = true; debug(`unread count source: page folder list (${n})`); }
+          this.setUnread(n);
+        } else if (!this.domCountMissLogged) {
+          this.domCountMissLogged = true;
+          debug('unread count: no "Inbox … N unread" found on the page yet');
+        }
       } catch { /* page navigating */ }
     };
     this.unreadWatcher = setInterval(() => { if (this.cfg.notify_on_unread) void tick(); }, 15_000);
@@ -798,6 +807,10 @@ export class AppRuntime {
       { label: visible ? `Hide ${this.cfg.name}` : `Show ${this.cfg.name}`, click: () => (visible ? this.hideAll() : this.showAll()) },
       { label: 'Reload', click: () => this.reload() },
       {
+        label: 'Send test notification',
+        click: () => this.notifications.notify(`${this.cfg.name}: test notification`, 'If you can read this, PWA Pop can show popups. Click to open the app.'),
+      },
+      {
         label: 'Mute notifications', type: 'checkbox', checked: !!this.state.data.muted,
         click: (item) => { this.state.update({ muted: item.checked }, true); this.refreshMenu(); },
       },
@@ -817,6 +830,7 @@ export class AppRuntime {
 
   /** navigator.setAppBadge() from the page or its service worker. */
   private onAppBadge(count: number) {
+    if (!this.badgeFromApi) debug(`unread count source: app badge (navigator.setAppBadge)`);
     this.badgeFromApi = true; // the page reports its own count; ignore the title
     this.setUnread(count);
   }
@@ -825,6 +839,7 @@ export class AppRuntime {
     if (n === this.unread && !force) return;
     const before = this.unread;
     this.unread = n;
+    debug(`unread ${before} -> ${n}${this.cfg.notify_on_unread ? '' : ' (notify_on_unread off)'}`);
     // Counts seen while the app is starting up are the baseline, not "new" mail.
     const seeded = Date.now() - this.startedAt > 45_000;
     // "New mail" fallback for sites that can't notify without Chrome's web push.

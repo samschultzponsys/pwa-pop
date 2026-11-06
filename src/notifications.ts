@@ -185,10 +185,14 @@ export class NotificationBridge {
 
   /** Native notification raised by webtray itself (downloads etc.). */
   notify(title: string, body: string, onClick?: () => void) {
-    if (this.host.isMuted()) return;
+    if (this.host.isMuted()) { debug(`notification skipped (muted): ${title}`); return; }
+    if (!Notification.isSupported()) { console.warn('[webtray] native notifications are not supported here'); return; }
+    debug(`showing notification: ${title} | ${body}`);
     const n = new Notification({ title, body, icon: this.host.appIcon() });
     const key = `self:${Date.now()}:${Math.random()}`;
     this.live.set(key, { n, src: null, key, tag: '', id: 0 });
+    n.on('show', () => debug(`notification shown: ${title}`));
+    n.on('failed', (_e: unknown, err: string) => { console.warn(`[webtray] notification failed: ${err}`); this.live.delete(key); });
     n.on('click', () => (onClick ?? (() => this.host.activate()))());
     n.on('close', () => this.live.delete(key));
     n.show();
