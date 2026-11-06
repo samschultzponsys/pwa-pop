@@ -9,6 +9,21 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [2.3] - 2026-11-06
+
+### Fixed
+- **Company sign-in (OIDC/SAML/SSO) stays inside the app.** Logging in through
+  an identity provider that wasn't in `allowed_origins` (e.g. ConnectWise
+  with an OIDC provider) opened the browser, and the app never got the login.
+  Pages that look like sign-in (OAuth/OIDC/SAML parameters, `/authorize`,
+  `/login`, `/sso`, Microsoft, Google, Okta, Duo, ConnectWise SSO…) now load
+  in the app window, as does every further step of the flow (MFA, consent)
+  until it returns to the app. Sign-in popups open as app windows. Ordinary
+  links still open in the browser.
+- Notifications raised from embedded frames now go through PWA Pop's bridge
+  too. Before, they could be dropped, along with "Pop the window up" and
+  urgency for them.
+
 ## [2.2] - 2026-11-06
 
 ### Added

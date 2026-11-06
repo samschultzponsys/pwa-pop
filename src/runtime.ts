@@ -10,7 +10,7 @@ import { badgeIcon, parseUnread } from './badge';
 import { defaultIcon, imageFromBuffer, imageHasTransparency, loadIconFile, styleIcon } from './icons';
 import { isInstalled, stableIcon } from './desktop';
 import { NotificationBridge } from './notifications';
-import { isSafeExternal, OriginMatcher } from './origins';
+import { isSafeExternal, looksLikeAuth, OriginMatcher } from './origins';
 import { assetPath, ensureDir, ICON_DIR, IN_FLATPAK, spawnSelf } from './paths';
 import { StateStore } from './state';
 import { backgroundCheck, UpdateInfo } from './updater';
@@ -331,6 +331,9 @@ export class AppRuntime {
       sandbox: true,
       nodeIntegration: false,
       backgroundThrottling: false,
+      // Run the notification bridge in embedded frames too (Outlook raises
+      // notifications from frames). This does not enable Node.js.
+      nodeIntegrationInSubFrames: true,
       spellcheck: true,
       autoplayPolicy: 'no-user-gesture-required',
     };
@@ -409,7 +412,8 @@ export class AppRuntime {
   /** Navigation guard, popups, context menu and shortcuts for any webContents we own. */
   private attachWebContents(wc: WebContents, win: BrowserWindow, isChild: boolean) {
     wc.setWindowOpenHandler(({ url }) => {
-      if (url === 'about:blank' || url === '' || this.matcher.matches(url)) {
+      // Sign-in popups (OAuth/OIDC/SAML) open as child windows even on other origins.
+      if (url === 'about:blank' || url === '' || this.matcher.matches(url) || looksLikeAuth(url)) {
         return {
           action: 'allow',
           overrideBrowserWindowOptions: {
@@ -431,9 +435,17 @@ export class AppRuntime {
 
     wc.on('will-navigate', (e) => {
       if (this.matcher.matches(e.url)) return;
+      // Sign-in flows stay in the app: the identity provider's pages, and
+      // every further step while we're already on a page outside the
+      // allowed origins (MFA, consent…), until it returns to the app.
+      const current = wc.getURL();
+      const inFlow = !!current && current !== 'about:blank' && !this.matcher.matches(current);
+      if (looksLikeAuth(e.url) || inFlow) {
+        debug(`sign-in step kept in app: ${e.url}`);
+        return;
+      }
       e.preventDefault();
       this.openExternal(e.url);
-      const current = wc.getURL();
       if (isChild && (!current || current === 'about:blank')) win.close();
     });
     // Server-side redirects (SSO hops) are allowed to finish in-app; log the

@@ -48,3 +48,22 @@ export function isSafeExternal(url: string): boolean {
     return false;
   }
 }
+
+/**
+ * Does this URL look like part of a sign-in flow (OAuth/OIDC, SAML, SSO, MFA)?
+ * Such pages stay inside the app even when their origin isn't allowed, so
+ * logins through company identity providers return to the app.
+ */
+export function looksLikeAuth(url: string): boolean {
+  let u: URL;
+  try { u = new URL(url); } catch { return false; }
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') return false;
+  const host = u.hostname.toLowerCase();
+  if (/(^|\.)(login\.microsoftonline\.com|login\.microsoft\.com|login\.live\.com|accounts\.google\.com|appleid\.apple\.com|okta\.com|oktapreview\.com|duosecurity\.com|auth0\.com|onelogin\.com|pingidentity\.com|pingone\.com|jumpcloud\.com|sso\.connectwise\.com|home\.connectwise\.com|login\.connectwise\.com|github\.com\/login)$/.test(host)) return true;
+  if (/(^|[.-])(sso|login|signin|auth|idp|adfs|sts|identity|id|accounts?|oauth|oidc|saml|mfa|okta|keycloak)([.-]|$)/.test(host)) return true;
+  const path = u.pathname.toLowerCase();
+  if (/\/(oauth2?|oidc|openid|openid-connect|saml2?|sso|adfs|authorize|auth|login|signin|sign-in|logon|mfa|2fa|callback|consent|connect\/authorize|protocol\/openid-connect)(\/|$|\.)/.test(path)) return true;
+  const q = u.searchParams;
+  return ['client_id', 'redirect_uri', 'response_type', 'samlrequest', 'samlresponse', 'relaystate', 'wa', 'wtrealm', 'code_challenge']
+    .some((k) => [...q.keys()].some((x) => x.toLowerCase() === k));
+}

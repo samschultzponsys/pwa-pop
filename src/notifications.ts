@@ -1,4 +1,4 @@
-import { ipcMain, nativeImage, NativeImage, Notification, ServiceWorkerMain, Session, WebContents } from 'electron';
+import { ipcMain, nativeImage, NativeImage, Notification, ServiceWorkerMain, Session, WebContents, WebFrameMain } from 'electron';
 import { imageFromBuffer } from './icons';
 
 export interface NotifyOptions {
@@ -44,22 +44,39 @@ export class NotificationBridge {
   private iconCache = new Map<string, NativeImage>();
 
   private pages = new WeakMap<WebContents, Source>();
+  private frames = new Map<string, Source>();
   private workers = new Set<number>();
 
   constructor(private host: NotificationHost) {
-    ipcMain.on('wt:notify', (e, opts: NotifyOptions) => { void this.show(this.pageSource(e.sender), opts); });
-    ipcMain.on('wt:notify-close', (e, id: number) => this.closeFrom(this.pageSource(e.sender), id));
+    ipcMain.on('wt:notify', (e, opts: NotifyOptions) => { void this.show(this.pageSource(e.sender, e.senderFrame), opts); });
+    ipcMain.on('wt:notify-close', (e, id: number) => this.closeFrom(this.pageSource(e.sender, e.senderFrame), id));
   }
 
-  private pageSource(wc: WebContents): Source {
-    let src = this.pages.get(wc);
+  /** The page or embedded frame a notification came from (events go back to that frame). */
+  private pageSource(wc: WebContents, frame?: WebFrameMain | null): Source {
+    const main = !frame || frame === wc.mainFrame;
+    if (main) {
+      let src = this.pages.get(wc);
+      if (!src) {
+        src = {
+          key: `wc${wc.id}`,
+          url: () => (wc.isDestroyed() ? '' : wc.getURL()),
+          send: (id, type) => { if (!wc.isDestroyed()) wc.send('wt:notify-event', id, type); },
+        };
+        this.pages.set(wc, src);
+      }
+      return src;
+    }
+    const key = `wc${wc.id}f${frame!.processId}.${frame!.routingId}`;
+    let src = this.frames.get(key);
     if (!src) {
+      const f = frame!;
       src = {
-        key: `wc${wc.id}`,
-        url: () => (wc.isDestroyed() ? '' : wc.getURL()),
-        send: (id, type) => { if (!wc.isDestroyed()) wc.send('wt:notify-event', id, type); },
+        key,
+        url: () => { try { return f.url; } catch { return ''; } },
+        send: (id, type) => { try { if (!f.isDestroyed()) f.send('wt:notify-event', id, type); } catch { /* frame gone */ } },
       };
-      this.pages.set(wc, src);
+      this.frames.set(key, src);
     }
     return src;
   }
