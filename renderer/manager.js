@@ -562,27 +562,71 @@ function showUpdate(u) {
   banner.classList.remove('hidden');
   $('#update-title').textContent = `PWA Pop ${u.latest} is available`;
   const how = {
-    flatpak: 'Flatpak updates arrive through Discover or "flatpak update".',
+    flatpak: 'Click "How to update" for the steps for this Flatpak.',
     appimage: 'Installing replaces this AppImage file.',
     rpm: 'Installing asks for your password and updates the package.',
     deb: 'Installing asks for your password and updates the package.',
     pacman: 'Installing asks for your password and updates the package.',
-    manual: 'Download the new version from the release page.',
+    manual: 'Click "How to update" for the steps.',
     dev: 'You are running from source: git pull to update.',
   }[u.kind] || '';
   $('#update-text').textContent = `You have ${u.current}. ${how}`;
   $('#btn-update-install').classList.toggle('hidden', !u.canInstall);
+  $('#btn-update-howto').classList.toggle('hidden', u.canInstall);
 }
 
 async function checkUpdate(force) {
   const u = await api.checkUpdate(force);
   showUpdate(u);
+  loadGuide().catch(() => {});
   if (force) {
     if (u.error) toast(`Update check failed: ${u.error}`);
     else if (!u.available) toast(`PWA Pop ${u.current} is the latest version`);
   }
 }
 
+// "How to update" for this install method (Flatpak, AppImage, rpm, deb…).
+let guide = null;
+async function loadGuide() {
+  guide = await api.updateGuide();
+  $('#install-kind').textContent = `Installed as ${guide.label}`;
+}
+
+async function showGuide() {
+  await loadGuide();
+  $('#guide-kind').textContent = guide.label;
+  $('#guide-where').textContent = guide.where ? `(${guide.where})` : '';
+  $('#guide-summary').textContent = guide.summary;
+  $('#guide-steps').replaceChildren(...guide.steps.map((st) => el('div', { class: 'guide-step' },
+    el('span', {}, st.text),
+    st.download ? el('div', {}, el('button', {
+      type: 'button', class: 'primary', id: 'btn-guide-download',
+      onclick: (e) => guard(async () => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        btn.textContent = 'Downloading…';
+        try {
+          const file = await api.downloadUpdate();
+          btn.textContent = 'Downloaded ✓';
+          toast(`Saved to ${file}`);
+        } catch (err) {
+          btn.disabled = false;
+          btn.textContent = 'Download';
+          throw err;
+        }
+      }),
+    }, 'Download')) : null,
+    st.command ? el('div', { class: 'cmd' },
+      el('code', {}, st.command),
+      el('button', { type: 'button', onclick: () => guard(async () => { await api.copy(st.command); toast('Copied, paste it into a terminal'); }) }, 'Copy'),
+    ) : null,
+  )));
+  $('#guide').showModal();
+}
+
+$('#btn-guide').addEventListener('click', () => guard(showGuide));
+$('#btn-update-howto').addEventListener('click', () => guard(showGuide));
+$('#btn-guide-releases').addEventListener('click', () => api.openExternal(lastUpdate?.releaseUrl || 'https://github.com/samschultzponsys/pwa-pop/releases/latest'));
 $('#btn-check-update').addEventListener('click', () => guard(() => checkUpdate(true)));
 $('#btn-update-notes').addEventListener('click', () => { if (lastUpdate?.releaseUrl) api.openExternal(lastUpdate.releaseUrl); });
 $('#btn-update-install').addEventListener('click', () => guard(async () => {
@@ -599,7 +643,12 @@ $('#btn-update-install').addEventListener('click', () => guard(async () => {
     btn.textContent = 'Install update';
   }
 }));
-api.onUpdateProgress((p) => { $('#btn-update-install').textContent = `Downloading… ${Math.round(p * 100)}%`; });
+api.onUpdateProgress((p) => {
+  const pct = `Downloading… ${Math.round(p * 100)}%`;
+  const g = document.getElementById('btn-guide-download');
+  if (g && g.disabled && !g.textContent.includes('✓')) g.textContent = pct;
+  else $('#btn-update-install').textContent = pct;
+});
 $('#f-autoupdate').addEventListener('change', (e) => guard(() => api.setAutoUpdate(e.target.checked)));
 
 (async () => {
@@ -607,6 +656,7 @@ $('#f-autoupdate').addEventListener('change', (e) => guard(() => api.setAutoUpda
   $('#version').textContent = `PWA Pop ${info.version}`;
   $('#config-path').textContent = info.configFile;
   $('#btn-manager-entry').classList.toggle('hidden', !info.appImage);
+  loadGuide().catch(() => {});
   iconColors = await api.iconColors();
   const sel = $('#f-color');
   for (const c of iconColors) sel.append(el('option', { value: c }, c.charAt(0).toUpperCase() + c.slice(1)));

@@ -9,6 +9,20 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [1.6] - 2026-11-06
+
+### Added
+- **"How to update" for your install.** The manager's footer shows how PWA Pop
+  was installed (Flatpak, AppImage, RPM, Debian or Arch package, tar.gz,
+  source). A "How to update" link opens step-by-step instructions for that
+  install, with copy buttons for the terminal commands. When an update is
+  available, the banner links to the same steps.
+- Flatpak: the guide checks whether your Flatpak follows the PWA Pop Flatpak
+  repository and whether that repository is online. Until it is, a
+  **Download** button saves the new `.flatpak` to ~/Downloads (verified
+  against the release checksums) and shows the install command.
+- `webtray --check-update` prints the same install-specific steps.
+
 ## [1.5] - 2026-11-06
 
 ### Added

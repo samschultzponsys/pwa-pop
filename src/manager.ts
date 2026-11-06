@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as net from 'net';
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, session, shell } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage, session, shell } from 'electron';
 import { AppConfig, ID_RE, loadApps, removeApp, resolveApp, upsertApp } from './config';
 import { installApp, installManagerEntry, isInstalled, setAutostart, uninstallApp } from './desktop';
 import { CONFIG_FILE, ensureDir, ICON_DIR, PROFILE_DIR, assetPath, IN_FLATPAK, releaseVersion, spawnSelf } from './paths';
@@ -10,7 +10,7 @@ import { inspectSite } from './inspect';
 import { StateStore } from './state';
 import { IconStyle, styleIcon } from './icons';
 import { COLOR_ORDER } from './iconstyle';
-import { autoCheckEnabled, checkForUpdates, installUpdate, setAutoCheck } from './updater';
+import { autoCheckEnabled, checkForUpdates, downloadUpdate, installUpdate, setAutoCheck, updateGuide } from './updater';
 
 /**
  * Is the app running? Chromium keeps a "SingletonSocket" in the profile. If
@@ -156,6 +156,11 @@ function registerIpc(win: BrowserWindow) {
   h('update:install', () => installUpdate((p) => {
     if (!win.isDestroyed()) { win.setProgressBar(p); win.webContents.send('update:progress', p); }
   }).finally(() => { if (!win.isDestroyed()) win.setProgressBar(-1); }));
+  h('update:guide', () => updateGuide());
+  h('update:download', () => downloadUpdate((p) => {
+    if (!win.isDestroyed()) { win.setProgressBar(p); win.webContents.send('update:progress', p); }
+  }).finally(() => { if (!win.isDestroyed()) win.setProgressBar(-1); }));
+  h('app:copy', (text: string) => { clipboard.writeText(String(text)); return true; });
   h('update:getAuto', () => autoCheckEnabled());
   h('update:setAuto', (on: boolean) => { setAutoCheck(!!on); return true; });
   h('app:openExternal', (url: string) => { if (/^https?:/.test(url)) void shell.openExternal(url); });

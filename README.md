@@ -6,7 +6,7 @@
 Run Outlook, Claude, the Yeastar Linkus softphone or any other site as a real desktop app,
 with its own window, tray icon, login, notifications, unread badge, autostart and headset buttons.</p>
 
-<p align="center">Current version: <b>1.5</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
+<p align="center">Current version: <b>1.6</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
 
 ---
 
@@ -252,6 +252,10 @@ in the manager). You can turn this off in the manager's footer.
 | rpm / deb / pacman | **Install update** downloads the package, verifies it, and installs it with your password (`pkexec dnf/apt/pacman`). |
 | Flatpak (from the repository, or a 1.2+ bundle) | Automatic through Discover / GNOME Software / `flatpak update`. |
 | tar.gz | You're told about the release; download it yourself. |
+
+The manager's footer shows how this copy was installed. **How to update**
+opens the exact steps for that install, with copyable commands (also printed
+by `webtray --check-update`).
 
 Every download is checked against the release's `SHA256SUMS.txt` before it is
 installed. Running apps switch to the new version when you restart them

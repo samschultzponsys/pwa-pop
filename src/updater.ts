@@ -262,3 +262,153 @@ export async function installUpdate(onProgress?: (p: number) => void): Promise<s
   fs.rmSync(file, { force: true });
   return `PWA Pop ${u.latest} is installed. Running apps switch to it when you restart them (Quit from the tray, then open them again).`;
 }
+
+// ---------------------------------------------------------------- guidance
+
+export const FLATPAK_ID = 'io.github.samschultzponsys.PwaPop';
+export const PAGES_URL = 'https://samschultzponsys.github.io/pwa-pop/';
+
+export interface GuideStep { text: string; command?: string; download?: boolean }
+export interface UpdateGuide {
+  kind: InstallKind;
+  /** Short name of the install method, e.g. "Flatpak", "RPM package". */
+  label: string;
+  /** Where it is installed, when that helps (AppImage path, install folder). */
+  where?: string;
+  /** One line: how this install gets updates. */
+  summary: string;
+  steps: GuideStep[];
+}
+
+/** Branch of the running Flatpak, from the sandbox's /.flatpak-info. */
+function flatpakBranch(): string | null {
+  try {
+    const m = /^branch=(.+)$/m.exec(fs.readFileSync('/.flatpak-info', 'utf8'));
+    return m ? m[1].trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+let repoOnlineCache: { at: number; online: boolean } | null = null;
+/** Is the PWA Pop Flatpak repository on GitHub Pages reachable? */
+async function flatpakRepoOnline(): Promise<boolean> {
+  if (repoOnlineCache && Date.now() - repoOnlineCache.at < 10 * 60 * 1000) return repoOnlineCache.online;
+  let online = false;
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 6000);
+    const res = await net.fetch(PAGES_URL + 'repo/summary', { method: 'HEAD', signal: ctl.signal });
+    clearTimeout(t);
+    online = res.ok;
+  } catch { /* offline */ }
+  repoOnlineCache = { at: Date.now(), online };
+  return online;
+}
+
+/** Install-specific "how do I update" instructions for the manager and CLI. */
+export async function updateGuide(): Promise<UpdateGuide> {
+  const kind = await installKind();
+  const v = readState().latest && isNewer(readState().latest!, releaseVersion()) ? readState().latest! : '<version>';
+  const releases = `https://github.com/${REPO}/releases/latest`;
+  switch (kind) {
+    case 'flatpak': {
+      const branch = flatpakBranch();
+      const online = await flatpakRepoOnline();
+      const tracksRepo = branch === 'stable';
+      if (tracksRepo && online) {
+        return {
+          kind, label: 'Flatpak',
+          summary: 'Updates arrive automatically through Discover (or GNOME Software).',
+          steps: [{ text: 'To update right away, run this in a terminal:', command: `flatpak update ${FLATPAK_ID}` }],
+        };
+      }
+      const file = path.join(os.homedir(), 'Downloads', `pwa-pop-${v}-x86_64.flatpak`);
+      const steps: GuideStep[] = v === '<version>'
+        ? [{ text: 'When a new version is out, download its .flatpak from the release page and run:', command: `flatpak install --user ./pwa-pop-${v}-x86_64.flatpak` }]
+        : [
+          { text: `Click Download to save pwa-pop-${v}-x86_64.flatpak to your Downloads folder (checked against the release's checksums).`, download: true },
+          { text: 'Then run this in a terminal:', command: `flatpak install --user "${file}"` },
+        ];
+      if (!tracksRepo) {
+        steps.push({ text: 'Or install from the PWA Pop repository once, and Discover keeps it up to date from then on:', command: `flatpak install --user ${PAGES_URL}pwa-pop.flatpakref` });
+      }
+      return {
+        kind, label: 'Flatpak',
+        summary: tracksRepo
+          ? 'This Flatpak will update through Discover once the PWA Pop Flatpak repository is online. Until then, install new versions by hand.'
+          : 'This Flatpak was installed from a file that does not receive updates. Install new versions by hand, or switch to the repository below.',
+        steps,
+      };
+    }
+    case 'appimage':
+      return {
+        kind, label: 'AppImage', where: process.env.APPIMAGE,
+        summary: 'Click "Install update" when one is available. The AppImage file is replaced in place.',
+        steps: [{ text: 'Or from a terminal:', command: `"${process.env.APPIMAGE}" --update` }],
+      };
+    case 'rpm': {
+      const tool = fs.existsSync('/usr/bin/dnf') ? 'dnf' : fs.existsSync('/usr/bin/zypper') ? 'zypper' : 'rpm';
+      const cmd = tool === 'dnf' ? `sudo dnf install ./pwa-pop-${v}-x86_64.rpm`
+        : tool === 'zypper' ? `sudo zypper install ./pwa-pop-${v}-x86_64.rpm` : `sudo rpm -U ./pwa-pop-${v}-x86_64.rpm`;
+      return {
+        kind, label: 'RPM package', where: '/opt/webtray',
+        summary: 'Click "Install update" when one is available. It asks for your password, then updates the package.',
+        steps: [
+          { text: 'Or from a terminal:', command: 'webtray --update' },
+          { text: `Or download pwa-pop-${v}-x86_64.rpm from the release page and run:`, command: cmd },
+        ],
+      };
+    }
+    case 'deb':
+      return {
+        kind, label: 'Debian package', where: '/opt/webtray',
+        summary: 'Click "Install update" when one is available. It asks for your password, then updates the package.',
+        steps: [
+          { text: 'Or from a terminal:', command: 'webtray --update' },
+          { text: `Or download pwa-pop-${v}-amd64.deb from the release page and run:`, command: `sudo apt install ./pwa-pop-${v}-amd64.deb` },
+        ],
+      };
+    case 'pacman':
+      return {
+        kind, label: 'Arch package', where: '/opt/webtray',
+        summary: 'Click "Install update" when one is available. It asks for your password, then updates the package.',
+        steps: [
+          { text: 'Or from a terminal:', command: 'webtray --update' },
+          { text: `Or download pwa-pop-${v}-x64.pacman from the release page and run:`, command: `sudo pacman -U ./pwa-pop-${v}-x64.pacman` },
+        ],
+      };
+    case 'manual': {
+      const dir = path.dirname(fs.realpathSync(process.execPath));
+      return {
+        kind, label: 'tar.gz archive', where: dir,
+        summary: 'This copy cannot update itself. Download the new tar.gz and extract it over this folder.',
+        steps: [{ text: `Download pwa-pop-${v}-x64.tar.gz from ${releases}, quit all PWA Pop apps, then run:`, command: `tar -xzf pwa-pop-${v}-x64.tar.gz --strip-components=1 -C "${dir}"` }],
+      };
+    }
+    default:
+      return {
+        kind, label: 'source checkout', where: app.getAppPath(),
+        summary: 'You are running from source. Pull and rebuild to update.',
+        steps: [{ text: 'In the repository folder:', command: 'git pull && npm ci && npm run build' }],
+      };
+  }
+}
+
+/** Download (and verify) this install's package for the latest version into ~/Downloads. */
+export async function downloadUpdate(onProgress?: (p: number) => void): Promise<string> {
+  const kind = await installKind();
+  const s = readState();
+  if (!s.latest || !isNewer(s.latest, releaseVersion())) throw new Error('PWA Pop is up to date.');
+  const name = kind === 'flatpak' ? `pwa-pop-${s.latest}-x86_64.flatpak`
+    : kind === 'manual' ? `pwa-pop-${s.latest}-x64.tar.gz` : assetName(kind, s.latest);
+  const url = name ? s.assets?.[name] : undefined;
+  if (!name || !url) throw new Error('the release does not have a package for this install yet');
+  const dir = path.join(os.homedir(), 'Downloads');
+  ensureDir(dir);
+  const file = path.join(dir, name);
+  await download(url, file + '.part', onProgress);
+  fs.renameSync(file + '.part', file);
+  await verify(file, name, s.assets!);
+  return file;
+}

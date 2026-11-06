@@ -117,14 +117,21 @@ function cli(): boolean {
 }
 
 async function updateCli(install: boolean): Promise<void> {
-  const { checkForUpdates, installUpdate } = await import('./updater');
+  const { checkForUpdates, installUpdate, updateGuide } = await import('./updater');
   const u = await checkForUpdates(true);
   if (u.error) fail(`update check failed: ${u.error}`);
-  if (!u.available) { out(`PWA Pop ${u.current} is up to date.`); return; }
+  if (!u.available) {
+    const g = await updateGuide();
+    out(`PWA Pop ${u.current} is up to date (installed as ${g.label}). ${g.summary}`);
+    return;
+  }
   out(`PWA Pop ${u.latest} is available (you have ${u.current}, installed as ${u.kind}).`);
   if (!install) return;
   if (!u.canInstall) {
-    out(u.kind === 'flatpak' ? 'Run: flatpak update io.github.samschultzponsys.PwaPop' : `Download it from ${u.releaseUrl}`);
+    const g = await updateGuide();
+    out(`Installed as ${g.label}${g.where ? ` (${g.where})` : ''}. ${g.summary}`);
+    for (const st of g.steps) out(`  ${st.text}${st.command ? `\n    ${st.command}` : ''}`);
+    if (u.releaseUrl) out(`Release page: ${u.releaseUrl}`);
     return;
   }
   let last = -1;

@@ -117,3 +117,11 @@ select { font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid
 #f-label { text-transform: uppercase; }
 .dup-note { margin: 0; padding: 10px 12px; border-radius: 10px; font-size: 13px;
   background: color-mix(in srgb, var(--accent) 12%, var(--card)); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+
+.guide p { margin: 0; }
+.guide-steps { display: flex; flex-direction: column; gap: 10px; }
+.guide-step { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.cmd { display: flex; gap: 8px; align-items: center; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 6px 6px 10px; }
+.cmd code { flex: 1; background: none; padding: 0; word-break: break-all; }
+.cmd button { padding: 4px 10px; font-size: 12px; }
+#install-kind { color: var(--muted); }

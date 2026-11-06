@@ -24,6 +24,7 @@
       <span id="update-text" class="muted"></span>
     </div>
     <button id="btn-update-notes" class="ghost">What's new</button>
+    <button id="btn-update-howto" class="ghost">How to update</button>
     <button id="btn-update-install" class="primary hidden">Install update</button>
   </div>
 
@@ -41,11 +42,28 @@
     <span id="version"></span>
     <span class="sep">·</span>
     <span id="config-path"></span>
+    <span class="sep">·</span>
+    <span id="install-kind"></span>
+    <button id="btn-guide" class="link">How to update</button>
     <span class="spacer"></span>
     <label class="check small"><input type="checkbox" id="f-autoupdate"> Check for updates automatically</label>
     <button id="btn-check-update" class="link">Check now</button>
     <button id="btn-manager-entry" class="link hidden">Add PWA Pop to the app menu</button>
   </footer>
+
+  <dialog id="guide">
+    <form method="dialog" class="guide">
+      <h2>Updating PWA Pop</h2>
+      <p><strong>Installed as:</strong> <span id="guide-kind"></span> <span id="guide-where" class="muted"></span></p>
+      <p id="guide-summary"></p>
+      <div id="guide-steps" class="guide-steps"></div>
+      <p class="hint">Your apps, logins and settings live in <code>~/.config/webtray</code> and are kept when you update.</p>
+      <div class="actions">
+        <button type="button" id="btn-guide-releases" class="ghost">Open release page</button>
+        <button type="submit" class="primary">Close</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog id="editor">
     <form id="form" method="dialog">
