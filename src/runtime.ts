@@ -90,6 +90,9 @@ export class AppRuntime {
     this.watchUnreadInPage();
     ipcMain.on('wt:badge', (_e, count: number) => this.onAppBadge(Number(count)));
     ipcMain.on('wt:visibility', (e, state: string) => {
+      if (e.sender === this.win.webContents) {
+        debug(`page visibility: ${state} (window visible=${this.win.isVisible()} minimized=${this.win.isMinimized()} focused=${this.win.isFocused()})`);
+      }
       // Page hidden while its window is still "shown": the compositor minimized it.
       if (state === 'hidden' && e.sender === this.win.webContents && this.cfg.minimize_to_tray
         && this.win.isVisible() && Date.now() - this.shownAt > 1000) {
@@ -541,8 +544,12 @@ export class AppRuntime {
       }
     });
     win.on('minimize', () => {
+      debug('window minimize event');
       if (this.cfg.minimize_to_tray) this.hideAll();
     });
+    win.on('restore', () => debug('window restore event'));
+    win.on('blur', () => debug('window blur'));
+    win.on('focus', () => debug('window focus'));
     win.on('show', () => this.refreshMenu());
     win.on('hide', () => this.refreshMenu());
 

@@ -9,6 +9,13 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [2.9] - 2026-11-06
+
+### Added
+- `WEBTRAY_DEBUG=1` also logs window minimize/restore/focus events and page
+  visibility changes, to diagnose "Minimize to the tray" on KDE Wayland
+  (the first minimize is caught, later ones are not).
+
 ## [2.8] - 2026-11-06
 
 ### Added
