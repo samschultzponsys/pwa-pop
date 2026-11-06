@@ -74,9 +74,12 @@ function registerIpc(win: BrowserWindow) {
 
   h('apps:list', () => Promise.all(loadApps().map(async (a) => {
     const r = resolveApp(a);
+    const running = await isRunning(a.id);
+    const st = new StateStore(a.id).data;
+    const memoryMb = running && st.memoryAt && Date.now() - st.memoryAt < 3 * 60_000 ? st.memoryMb : undefined;
     return {
       config: a, icon: iconDataUrl(r.iconPath, a), baseIcon: iconDataUrl(r.iconPath),
-      installed: isInstalled(a.id), running: await isRunning(a.id),
+      installed: isInstalled(a.id), running, memoryMb,
     };
   })));
 

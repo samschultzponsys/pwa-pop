@@ -9,6 +9,19 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [1.8] - 2026-11-06
+
+### Added
+- **Memory limit per app** (`memory_limit_mb`, or "Memory limit" in the
+  manager). Every minute the app adds up the memory of all its processes. Over
+  the limit, it reloads the page first (you stay signed in). If it's still over
+  a couple of minutes later, it restarts the app, staying hidden in the tray if
+  it was hidden. It never does this while audio is playing or played in the
+  last minute (calls), or while you're typing or clicking in the window. A
+  notification tells you when it happened.
+- The manager shows each running app's current memory use on its card
+  ("RAM 412 MB / 1.5 GB"), turning amber near the limit.
+
 ## [1.7] - 2026-11-06
 
 ### Fixed

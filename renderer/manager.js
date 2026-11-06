@@ -48,7 +48,9 @@ async function refresh() {
   for (const a of apps) list.append(card(a));
 }
 
-function card({ config: c, icon, baseIcon, installed, running }) {
+const fmtMb = (mb) => (mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`);
+
+function card({ config: c, icon, baseIcon, installed, running, memoryMb }) {
   const toggle = (label, key) => el('label', { class: 'check' },
     el('input', {
       type: 'checkbox', checked: !!c[key],
@@ -67,6 +69,10 @@ function card({ config: c, icon, baseIcon, installed, running }) {
     el('div', { class: 'badges' },
       el('span', { class: 'badge' }, c.id),
       el('span', { class: 'badge' + (running ? ' on' : '') }, running ? 'running' : 'not running'),
+      memoryMb != null ? el('span', {
+        class: 'badge' + (c.memory_limit_mb && memoryMb > c.memory_limit_mb * 0.9 ? ' warn' : ''),
+        title: 'Memory used by this app (all its processes)',
+      }, `RAM ${fmtMb(memoryMb)}${c.memory_limit_mb ? ` / ${fmtMb(c.memory_limit_mb)}` : ''}`) : null,
       installed.menu ? el('span', { class: 'badge on' }, 'in menu') : null,
       installed.autostart ? el('span', { class: 'badge on' }, 'autostart') : null,
       (c.hid_devices || []).length ? el('span', { class: 'badge on' }, 'headset') : null,
@@ -415,6 +421,7 @@ async function openEditor(cfg, iconUrl, mode = cfg ? 'edit' : 'add') {
   $('#f-raise').checked = !!cfg?.raise_on_notification;
   $('#f-resume').checked = !!cfg?.reload_on_resume;
   $('#f-cert').checked = !!cfg?.ignore_certificate_errors;
+  $('#f-memlimit').value = cfg?.memory_limit_mb || '';
   $('#f-menu').checked = true;
   $('#f-origins').value = (cfg?.allowed_origins || []).join('\n');
   $('#f-perms').value = (cfg?.extra_permissions || []).join(', ');
@@ -507,6 +514,8 @@ async function save(ev) {
   opt('reload_on_resume', $('#f-resume').checked);
   opt('ignore_certificate_errors', $('#f-cert').checked);
   opt('icon_auto', iconAuto);
+  const mem = parseInt($('#f-memlimit').value, 10);
+  if (mem >= 200) cfg.memory_limit_mb = mem; else delete cfg.memory_limit_mb;
   const style = styleFields();
   if (style.icon_color) cfg.icon_color = style.icon_color; else delete cfg.icon_color;
   if (style.icon_label) cfg.icon_label = style.icon_label; else delete cfg.icon_label;

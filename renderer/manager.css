@@ -125,3 +125,9 @@ select { font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid
 .cmd code { flex: 1; background: none; padding: 0; word-break: break-all; }
 .cmd button { padding: 4px 10px; font-size: 12px; }
 #install-kind { color: var(--muted); }
+
+label.inline { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; font-weight: normal; margin-top: 4px; }
+label.inline input { width: 110px; }
+label.inline .muted { flex-basis: 100%; font-size: 12px; }
+input[type=number] { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+.badge.warn { color: #b45309; border-color: color-mix(in srgb, #b45309 40%, transparent); }

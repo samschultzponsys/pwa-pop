@@ -10,7 +10,7 @@ import { defaultIcon, imageFromBuffer, imageHasTransparency, loadIconFile, style
 import { isInstalled, stableIcon } from './desktop';
 import { NotificationBridge } from './notifications';
 import { isSafeExternal, OriginMatcher } from './origins';
-import { assetPath, ensureDir, ICON_DIR, spawnSelf } from './paths';
+import { assetPath, ensureDir, ICON_DIR, IN_FLATPAK, spawnSelf } from './paths';
 import { StateStore } from './state';
 import { backgroundCheck, UpdateInfo } from './updater';
 
@@ -84,6 +84,74 @@ export class AppRuntime {
     this.createTray();
     this.setupLifecycle();
     this.scheduleUpdateChecks();
+    this.watchMemory();
+  }
+
+  // ------------------------------------------------------------ memory limit
+  private lastAudible = 0;
+  private lastInput = 0;
+  private reloadedForMemoryAt = 0;
+
+  /** Sum of all this app's processes (browser, GPU, utility, renderers), in MB. */
+  private memoryMb(): number {
+    const kb = app.getAppMetrics().reduce((sum, m) => sum + (m.memory?.workingSetSize ?? 0), 0);
+    return Math.round(kb / 1024);
+  }
+
+  /** Busy = a call or media is (or just was) playing, or the user is typing/clicking in the window. */
+  private busy(): boolean {
+    const now = Date.now();
+    const wcs = [this.win, ...this.children].filter((w) => !w.isDestroyed()).map((w) => w.webContents);
+    if (wcs.some((wc) => wc.isCurrentlyAudible())) this.lastAudible = now;
+    if (now - this.lastAudible < 60_000) return true;
+    return this.win.isVisible() && this.win.isFocused() && now - this.lastInput < 120_000;
+  }
+
+  private watchMemory() {
+    this.win.webContents.on('before-input-event', () => { this.lastInput = Date.now(); });
+    const fmt = (mb: number) => (mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`);
+    const tick = () => {
+      if (this.quitting || this.win.isDestroyed()) return;
+      const mb = this.memoryMb();
+      this.state.update({ memoryMb: mb, memoryAt: Date.now() });
+      const limit = Number(this.cfg.memory_limit_mb) || 0;
+      if (!limit || mb <= limit) return;
+      if (this.busy()) { debug(`memory ${mb} MB over ${limit} MB, waiting (in use / audio)`); return; }
+      const now = Date.now();
+      if (now - this.reloadedForMemoryAt > 10 * 60_000) {
+        // Step 1: reloading the page frees most memory and keeps the login.
+        this.reloadedForMemoryAt = now;
+        console.warn(`[webtray:${this.cfg.id}] memory ${mb} MB over limit ${limit} MB: reloading`);
+        for (const w of this.children) if (!w.isDestroyed()) w.close();
+        this.win.webContents.reload();
+        this.notifications.notify(`${this.cfg.name} was reloaded to free memory`, `It was using ${fmt(mb)} (limit ${fmt(limit)}).`);
+      } else if (now - this.reloadedForMemoryAt > 2 * 60_000) {
+        // Step 2: still over a while after the reload, so restart the whole app.
+        console.warn(`[webtray:${this.cfg.id}] memory ${mb} MB still over limit ${limit} MB after reload: restarting`);
+        this.notifications.notify(`${this.cfg.name} is restarting to free memory`, `It was using ${fmt(mb)} (limit ${fmt(limit)}).`);
+        this.restart();
+      }
+    };
+    setInterval(tick, 60_000);
+    setTimeout(tick, 15_000);
+  }
+
+  /** Relaunch this app process, keeping it hidden if it is hidden now. */
+  restart() {
+    const args = ['--app', this.cfg.id];
+    if (!this.win.isVisible()) args.push('--hidden');
+    this.quitting = true;
+    this.state.flush();
+    this.tray?.destroy();
+    // Let go of the single-instance lock first, or the new copy would just
+    // hand over to this (exiting) one and quit.
+    app.releaseSingleInstanceLock();
+    // Start the new copy as a detached process (inside Flatpak: in a fresh
+    // sandbox via the portal, since children die with this sandbox).
+    void spawnSelf(args).then((err) => {
+      if (err) console.warn(`[webtray:${this.cfg.id}] restart failed: ${err}`);
+      app.exit(0);
+    });
   }
 
   /** Check GitHub Releases shortly after start and then every 12 h. */

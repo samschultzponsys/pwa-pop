@@ -9,6 +9,9 @@ export interface AppState {
   zoom?: number;
   /** The site's own icon has been adopted (icon_auto). */
   iconAdopted?: boolean;
+  /** Last measured memory use (MB) and when, for the manager. */
+  memoryMb?: number;
+  memoryAt?: number;
 }
 
 export class StateStore {

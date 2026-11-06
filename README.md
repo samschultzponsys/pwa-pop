@@ -6,7 +6,7 @@
 Run Outlook, Claude, the Yeastar Linkus softphone or any other site as a real desktop app,
 with its own window, tray icon, login, notifications, unread badge, autostart and headset buttons.</p>
 
-<p align="center">Current version: <b>1.7</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
+<p align="center">Current version: <b>1.8</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
 
 ---
 
@@ -159,6 +159,7 @@ you and keeps your comments. A full, commented example is in
 | `ignore_certificate_errors` | `false` | Accept self-signed certificates on allowed origins only. |
 | `user_agent` | Chrome UA | Override the user agent. |
 | `width`, `height` | 1200×800 | Initial size. |
+| `memory_limit_mb` | – | Reload, then restart, the app when it uses more than this many MB. Never during calls or while you're using it. |
 | `icon_color` | – | Recolour the icon: `blue`, `green`, `purple`, `orange`, `teal`, `pink`, `red`, `yellow`. Used for duplicates. |
 | `icon_label` | – | 1–2 characters in a coloured chip on the icon's top-left corner (e.g. `2` or `W`). |
 | `icon_auto` | – | Set by the manager when it picked the icon: PWA Pop swaps in the site's own icon after you sign in. |

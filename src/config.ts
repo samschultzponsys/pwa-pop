@@ -39,6 +39,12 @@ export interface AppConfig {
   icon_label?: string;
   /** The icon was picked automatically: replace it with the site's own icon once signed in. */
   icon_auto?: boolean;
+  /**
+   * Memory limit in MB for this app (all its processes together). Over the
+   * limit the page is reloaded, then the app is restarted if that was not
+   * enough. Never while audio is playing (calls) or while you are using it.
+   */
+  memory_limit_mb?: number;
 }
 
 /** AppConfig with defaults filled in. */

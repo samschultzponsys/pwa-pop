@@ -104,7 +104,9 @@ export function spawnSelf(args: string[]): Promise<string | null> {
       const [cmd, ...rest] = attempts[i];
       let settled = false;
       try {
-        const child = spawn(cmd, rest, { detached: true, stdio: 'ignore', env });
+        const log = process.env.WEBTRAY_SPAWN_LOG;
+        const out = log ? require('fs').openSync(log, 'a') : 'ignore';
+        const child = spawn(cmd, rest, { detached: true, stdio: ['ignore', out, out], env });
         child.once('error', (e) => {
           if (settled) return;
           settled = true;

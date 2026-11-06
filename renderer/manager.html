@@ -116,6 +116,10 @@
         <label class="check"><input type="checkbox" id="f-raise"> Pop the window up when a notification arrives</label>
         <label class="check"><input type="checkbox" id="f-resume"> Reload after the computer wakes from sleep</label>
         <label class="check"><input type="checkbox" id="f-cert"> Accept self-signed certificates (on-premise servers only)</label>
+        <label class="inline">Memory limit
+          <input id="f-memlimit" type="number" min="200" step="100" placeholder="no limit">
+          <span class="muted">MB. Over the limit the page reloads (you stay signed in); if that isn't enough the app restarts. Never during a call or while you're using it.</span>
+        </label>
       </fieldset>
 
       <details>
