@@ -11,7 +11,7 @@
 import * as path from 'path';
 import { app } from 'electron';
 import { AppConfig, getApp, ID_RE, loadApps, upsertApp } from './config';
-import { autostartFile, desktopFile, installApp, isInstalled, uninstallApp } from './desktop';
+import { autostartFile, desktopFile, desktopId, installApp, isInstalled, migrateDesktopEntries, uninstallApp } from './desktop';
 import { CONFIG_FILE, ensureDir, PROFILE_DIR, releaseVersion } from './paths';
 
 const HELP = `PWA Pop (webtray) — run web apps as tray-resident desktop apps
@@ -167,9 +167,10 @@ function main() {
     ensureDir(PROFILE_DIR);
     app.setPath('userData', path.join(PROFILE_DIR, cfg.id));
     // Ties windows, taskbar badges and icons to webtray-<id>.desktop.
-    process.env.CHROME_DESKTOP = `webtray-${cfg.id}.desktop`;
-    app.commandLine.appendSwitch('class', `webtray-${cfg.id}`);
+    process.env.CHROME_DESKTOP = `${desktopId(cfg.id)}.desktop`;
+    app.commandLine.appendSwitch('class', desktopId(cfg.id));
     if (!app.requestSingleInstanceLock({ id: cfg.id })) { app.exit(0); return; }
+    try { migrateDesktopEntries([cfg]); } catch { /* best effort */ }
     const hidden = flag('--hidden') || cfg.start_hidden;
     app.whenReady().then(async () => {
       const { AppRuntime } = await import('./runtime');
@@ -185,6 +186,7 @@ function main() {
   process.env.CHROME_DESKTOP = process.env.FLATPAK_ID ? `${process.env.FLATPAK_ID}.desktop` : 'webtray.desktop';
   app.commandLine.appendSwitch('class', 'webtray');
   if (!app.requestSingleInstanceLock()) { app.exit(0); return; }
+  try { migrateDesktopEntries(loadApps()); } catch { /* best effort */ }
   app.whenReady().then(async () => {
     const { runManager } = await import('./manager');
     await runManager();

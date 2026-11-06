@@ -9,6 +9,17 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [1.7] - 2026-11-06
+
+### Fixed
+- Flatpak: windows in the taskbar showed the PWA Pop icon instead of the app's
+  own (Outlook, Linkus…). KDE only matches sandboxed windows to desktop
+  entries whose name starts with the Flatpak's id. Each app's entry is now
+  `io.github.samschultzponsys.PwaPop.<id>.desktop`, and its window uses that
+  id. Existing menu and autostart entries are renamed automatically the next
+  time the app or the manager starts. Re-pin any app you had pinned to the
+  taskbar.
+
 ## [1.6] - 2026-11-06
 
 ### Added

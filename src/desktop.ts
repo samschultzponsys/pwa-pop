@@ -7,7 +7,14 @@ import {
   APPLICATIONS_DIR, AUTOSTART_DIR, assetPath, desktopQuote, ensureDir, ICON_DIR, IN_FLATPAK, launcherCommand, WAYLAND_FLAGS,
 } from './paths';
 
-export const desktopId = (id: string) => `webtray-${id}`;
+/**
+ * Desktop-entry id for an app; also the window's Wayland app_id / X11 class,
+ * which is how the taskbar finds the app's own icon. Inside Flatpak, KDE and
+ * GNOME only accept ids that start with the Flatpak's id (the same scheme
+ * Chrome's Flatpak uses for PWAs), so there it is "<flatpak-id>.<app-id>".
+ */
+export const desktopId = (id: string) => (IN_FLATPAK && process.env.FLATPAK_ID ? `${process.env.FLATPAK_ID}.${id}` : `webtray-${id}`);
+const legacyDesktopId = (id: string) => `webtray-${id}`;
 export const desktopFile = (id: string) => path.join(APPLICATIONS_DIR, `${desktopId(id)}.desktop`);
 export const autostartFile = (id: string) => path.join(AUTOSTART_DIR, `${desktopId(id)}.desktop`);
 
@@ -90,7 +97,8 @@ export function setAutostart(app: AppConfig, enabled: boolean): string | null {
 
 export function uninstallApp(id: string): string[] {
   const removed: string[] = [];
-  for (const f of [desktopFile(id), autostartFile(id)]) {
+  const legacy = [path.join(APPLICATIONS_DIR, `${legacyDesktopId(id)}.desktop`), path.join(AUTOSTART_DIR, `${legacyDesktopId(id)}.desktop`)];
+  for (const f of [desktopFile(id), autostartFile(id), ...legacy]) {
     if (fs.existsSync(f)) { fs.rmSync(f, { force: true }); removed.push(f); }
   }
   return removed;
@@ -113,4 +121,27 @@ export function installManagerEntry(): string {
     'X-WebTray-Id': 'manager',
   }));
   return file;
+}
+
+/**
+ * Flatpak installs from before 1.7 wrote webtray-<id>.desktop, which KDE
+ * ignores for sandboxed windows (every window showed the PWA Pop icon).
+ * Rewrite those entries under the Flatpak-prefixed name.
+ */
+export function migrateDesktopEntries(apps: AppConfig[]): void {
+  if (!IN_FLATPAK) return;
+  for (const app of apps) {
+    const oldMenu = path.join(APPLICATIONS_DIR, `${legacyDesktopId(app.id)}.desktop`);
+    const oldAuto = path.join(AUTOSTART_DIR, `${legacyDesktopId(app.id)}.desktop`);
+    const hadMenu = fs.existsSync(oldMenu), hadAuto = fs.existsSync(oldAuto);
+    if (!hadMenu && !hadAuto) continue;
+    try {
+      if (hadMenu) installApp(app);
+      if (hadAuto) setAutostart(app, true);
+      fs.rmSync(oldMenu, { force: true });
+      fs.rmSync(oldAuto, { force: true });
+    } catch (e) {
+      console.warn(`[webtray] could not migrate desktop entries for ${app.id}`, e);
+    }
+  }
 }
