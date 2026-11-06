@@ -1,8 +1,8 @@
 {
   "name": "pwa-pop",
   "productName": "PWA Pop",
-  "version": "2.9.0",
-  "description": "Run web apps (Outlook, Claude, Linkus…) as standalone, tray-resident desktop apps on Linux",
+  "version": "3.0.0",
+  "description": "Run web apps (Outlook, Claude, Linkus\u2026) as standalone, tray-resident desktop apps on Linux",
   "main": "dist/main.js",
   "license": "MIT",
   "author": {
@@ -41,7 +41,7 @@
     "productName": "webtray",
     "executableName": "webtray",
     "artifactName": "pwa-pop-${env.RELEASE_VERSION}-${arch}.${ext}",
-    "copyright": "Copyright © 2026 Sam Schultz",
+    "copyright": "Copyright \u00a9 2026 Sam Schultz",
     "directories": {
       "output": "release",
       "buildResources": "build"

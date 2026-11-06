@@ -9,6 +9,15 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [3.0] - 2026-11-06
+
+Rolls over from 2.9 under the MAJOR.MINOR scheme.
+
+### Added
+- **The whole of PWA Pop switches over after an update.** The manager window
+  now reopens on the new version too, like the apps. It waits while an edit
+  form or the update guide is open, so nothing unsaved is lost.
+
 ## [2.9] - 2026-11-06
 
 ### Added

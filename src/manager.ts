@@ -4,7 +4,8 @@ import * as net from 'net';
 import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage, session, shell } from 'electron';
 import { AppConfig, ID_RE, loadApps, removeApp, resolveApp, upsertApp } from './config';
 import { installApp, installManagerEntry, isInstalled, setAutostart, uninstallApp } from './desktop';
-import { CONFIG_FILE, ensureDir, ICON_DIR, PROFILE_DIR, assetPath, IN_FLATPAK, releaseVersion, spawnSelf } from './paths';
+import { CONFIG_FILE, ensureDir, ICON_DIR, PROFILE_DIR, assetPath, IN_FLATPAK, readVersionMarker, releaseVersion, spawnSelf } from './paths';
+import { isNewer } from './updater';
 import { cleanUserAgent } from './runtime';
 import { inspectSite } from './inspect';
 import { StateStore } from './state';
@@ -214,4 +215,30 @@ export async function runManager(): Promise<void> {
   app.on('second-instance', () => { if (win.isMinimized()) win.restore(); win.show(); win.focus(); });
   app.on('window-all-closed', () => app.quit());
   await win.loadFile(assetPath('renderer', 'manager.html'));
+  watchForNewVersion(win);
+}
+
+/**
+ * After an update, reopen the manager on the new version too (the apps do the
+ * same). Waits while an edit form is open so nothing unsaved is lost.
+ */
+function watchForNewVersion(win: BrowserWindow) {
+  const startedAt = Date.now();
+  let restarting = false;
+  setInterval(async () => {
+    if (restarting || win.isDestroyed()) return;
+    const m = readVersionMarker();
+    if (!m) return;
+    if (!isNewer(m.version, releaseVersion()) && !(m.restartAll && m.at > startedAt)) return;
+    try {
+      const editing: boolean = await win.webContents.executeJavaScript(
+        "!!(document.querySelector('#editor')?.open || document.querySelector('#guide')?.open)", true);
+      if (editing) return;
+    } catch { return; }
+    restarting = true;
+    app.releaseSingleInstanceLock();
+    const err = await spawnSelf([]);
+    if (err) { console.warn(`[webtray] manager restart failed: ${err}`); restarting = false; return; }
+    app.exit(0);
+  }, 15_000);
 }
