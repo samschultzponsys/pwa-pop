@@ -161,6 +161,7 @@ you and keeps your comments. A full, commented example is in
 | `width`, `height` | 1200×800 | Initial size. |
 | `handle_schemes` | – | Link types this app opens and dials, e.g. `[tel, callto, sip]` (click-to-call). The app becomes their default. |
 | `dial_input`, `dial_button`, `dial_open` | – | CSS selectors for click-to-call, set from the app's right-click menu ("Use for click-to-call"). |
+| `pass_shortcuts` | `false` | Send every key combination to the page (remote desktop tools like MeshCentral, web terminals) instead of PWA Pop's Ctrl+W/R, F5, F12, Alt+←/→ and zoom shortcuts. |
 | `memory_limit_mb` | – | Reload, then restart, the app when it uses more than this many MB. Never during calls or while you're using it. |
 | `icon_color` | – | Recolour the icon: `blue`, `green`, `purple`, `orange`, `teal`, `pink`, `red`, `yellow`. Used for duplicates. |
 | `icon_label` | – | 1–2 characters in a coloured chip on the icon's top-left corner (e.g. `2` or `W`). |

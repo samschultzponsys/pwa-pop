@@ -421,6 +421,7 @@ async function openEditor(cfg, iconUrl, mode = cfg ? 'edit' : 'add') {
   $('#f-urgent').checked = !!cfg?.urgent_notifications;
   $('#f-raise').checked = !!cfg?.raise_on_notification;
   $('#f-resume').checked = !!cfg?.reload_on_resume;
+  $('#f-keys').checked = !!cfg?.pass_shortcuts;
   $('#f-cert').checked = !!cfg?.ignore_certificate_errors;
   $('#f-memlimit').value = cfg?.memory_limit_mb || '';
   $('#f-calls').checked = !!(cfg?.handle_schemes || []).length;
@@ -518,6 +519,7 @@ async function save(ev) {
   opt('urgent_notifications', $('#f-urgent').checked);
   opt('raise_on_notification', $('#f-raise').checked);
   opt('reload_on_resume', $('#f-resume').checked);
+  opt('pass_shortcuts', $('#f-keys').checked);
   opt('ignore_certificate_errors', $('#f-cert').checked);
   opt('icon_auto', iconAuto);
   if ($('#f-calls').checked) cfg.handle_schemes = ['tel', 'callto', 'sip']; else delete cfg.handle_schemes;

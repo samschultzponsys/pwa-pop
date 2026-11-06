@@ -50,6 +50,12 @@ export interface AppConfig {
    * The app is registered as their handler and set as the default.
    */
   handle_schemes?: string[];
+  /**
+   * Send every keyboard shortcut to the page instead of handling Ctrl+W/R,
+   * F5, F12, Alt+arrows and zoom in PWA Pop (remote desktop tools such as
+   * MeshCentral, web terminals).
+   */
+  pass_shortcuts?: boolean;
   /** CSS selectors for click-to-call, taught via the right-click menu. */
   dial_input?: string;
   dial_button?: string;

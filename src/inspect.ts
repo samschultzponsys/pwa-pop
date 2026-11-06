@@ -27,9 +27,20 @@ const PRESETS: { match: RegExp; origins: string[]; name?: string; note?: string 
     note: 'Added Microsoft 365 sign-in origins. Add your ADFS / IdP origin if your organisation uses one.',
   },
   {
-    match: /(^|\.)teams\.(microsoft|live)\.com$/,
+    match: /(^|\.)(teams\.(microsoft|live)\.com|teams\.cloud\.microsoft)$/,
     name: 'Teams',
-    origins: ['https://teams.microsoft.com', 'https://teams.live.com', 'https://*.teams.microsoft.com', 'https://login.microsoftonline.com', 'https://login.live.com'],
+    origins: [
+      'https://teams.microsoft.com', 'https://teams.cloud.microsoft', 'https://teams.live.com', 'https://*.teams.microsoft.com',
+      'https://*.cloud.microsoft', 'https://*.office.com', 'https://login.microsoftonline.com', 'https://login.microsoft.com',
+      'https://login.live.com',
+    ],
+    note: 'Added Microsoft 365 sign-in origins. For screen sharing in meetings, add display-capture to Extra permissions.',
+  },
+  {
+    match: /(^|\.)(myconnectwise\.net|connectwise\.com|connectwisedev\.com)$/,
+    name: 'ConnectWise',
+    origins: ['https://*.myconnectwise.net', 'https://*.connectwise.com', 'https://login.microsoftonline.com'],
+    note: 'Phone numbers in tickets open in your primary phone app (e.g. Linkus).',
   },
   {
     match: /(^|\.)claude\.ai$/,

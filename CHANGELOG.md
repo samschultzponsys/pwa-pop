@@ -9,6 +9,15 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+### Added
+- "Send all keyboard shortcuts to the page" option (`pass_shortcuts`) for
+  remote desktop tools such as MeshCentral and web terminals. Ctrl+W, Ctrl+R,
+  F5, F12 and Alt+arrows then go to the remote session instead of hiding or
+  reloading the app.
+- Ready-made sign-in origins for ConnectWise (`*.myconnectwise.net`,
+  `*.connectwise.com`) and for Teams' new address `teams.cloud.microsoft`.
+  Without them, Teams would bounce to the browser after sign-in.
+
 ## [2.1] - 2026-11-06
 
 ### Fixed

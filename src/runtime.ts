@@ -444,7 +444,7 @@ export class AppRuntime {
 
     wc.on('context-menu', (_e, p) => this.contextMenu(wc, p));
     wc.on('before-input-event', (e, input) => {
-      if (input.type !== 'keyDown') return;
+      if (input.type !== 'keyDown' || this.cfg.pass_shortcuts) return;
       const ctrl = input.control || input.meta;
       const key = input.key.toLowerCase();
       const act = (fn: () => void) => { e.preventDefault(); fn(); };
