@@ -22,6 +22,12 @@ export interface AppConfig {
   extra_permissions?: string[];
   /** Use critical urgency (stays on screen) for this app's notifications. */
   urgent_notifications?: boolean;
+  /**
+   * Show a notification whenever the unread count goes up (from the page's
+   * app badge or title). For sites whose own notifications depend on web push,
+   * which only Chrome has, such as the new Outlook.
+   */
+  notify_on_unread?: boolean;
   /** Show the window whenever the page raises a notification (e.g. incoming call). */
   raise_on_notification?: boolean;
   /** Regex with one capture group for the unread count. Default: \((\d+)\) */

@@ -125,7 +125,11 @@ export class NotificationBridge {
     return img;
   }
 
+  /** When the site last showed a notification of its own (ms). */
+  lastSiteNotification = 0;
+
   private async show(src: Source, o: NotifyOptions) {
+    this.lastSiteNotification = Date.now();
     debug(`notification from ${src.key} (${src.url()}): ${o.title}`);
     if (!this.host.isAllowed(src.url())) {
       console.warn(`[webtray] notification from ${src.url()} blocked: origin not in allowed_origins`);

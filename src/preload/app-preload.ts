@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('__webtray', {
   show: (opts: unknown) => ipcRenderer.send('wt:notify', opts),
   close: (id: number) => ipcRenderer.send('wt:notify-close', id),
   onEvent: (cb: Listener) => { listeners.push(cb); },
+  badge: (count: number | null) => ipcRenderer.send('wt:badge', count),
 });
 
 function installShim(): void {
@@ -96,6 +97,32 @@ function installShim(): void {
   });
 
   Object.defineProperty(w, 'Notification', { value: Notification, writable: true, configurable: true });
+
+  // We are an installed app: report display-mode "standalone" like Chrome does
+  // for installed PWAs. Some sites (the new Outlook) only set their unread
+  // badge when they think they are installed.
+  const mm = w.matchMedia && w.matchMedia.bind(w);
+  if (mm) {
+    w.matchMedia = function (query: string) {
+      const mql = mm(query);
+      const q = String(query).replace(/\s+/g, '').toLowerCase();
+      if (q.includes('display-mode:standalone') || q.includes('display-mode:window-controls-overlay') === false && q.includes('display-mode:browser')) {
+        const standalone = q.includes('display-mode:standalone');
+        try { Object.defineProperty(mql, 'matches', { get: () => standalone, configurable: true }); } catch { /* ignore */ }
+      }
+      return mql;
+    };
+  }
+
+  // App badge (unread count) as used by installed PWAs such as the new Outlook.
+  const nav = w.Navigator && w.Navigator.prototype;
+  if (nav) {
+    nav.setAppBadge = function (count?: number) {
+      bridge.badge(count === undefined ? -1 : Math.max(0, Math.floor(Number(count) || 0)));
+      return Promise.resolve();
+    };
+    nav.clearAppBadge = function () { bridge.badge(0); return Promise.resolve(); };
+  }
 
   // Pages often show notifications through their service worker registration.
   const SWR = w.ServiceWorkerRegistration;

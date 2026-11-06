@@ -420,6 +420,7 @@ async function openEditor(cfg, iconUrl, mode = cfg ? 'edit' : 'add') {
   $('#f-hidden').checked = !!cfg?.start_hidden;
   $('#f-urgent').checked = !!cfg?.urgent_notifications;
   $('#f-raise').checked = !!cfg?.raise_on_notification;
+  $('#f-unread').checked = !!cfg?.notify_on_unread;
   $('#f-resume').checked = !!cfg?.reload_on_resume;
   $('#f-keys').checked = !!cfg?.pass_shortcuts;
   $('#f-cert').checked = !!cfg?.ignore_certificate_errors;
@@ -483,6 +484,8 @@ async function fetchDetails() {
     info.allowed_origins.forEach((o) => existing.add(o));
     $('#f-origins').value = [...existing].join('\n');
     showNotes(info.notes);
+    // The new Outlook only notifies through Chrome's web push: use the unread fallback.
+    if (/(^|\.)outlook\.(office|office365|live)\.com$|(^|\.)outlook\.cloud\.microsoft$/.test(new URL(info.url).hostname)) $('#f-unread').checked = true;
     const ranked = rank(await Promise.all((info.icons || []).map(analyze)));
     if (ranked.length && await drawIcon(ranked[0].src)) {
       setIconAuto(true);
@@ -518,6 +521,7 @@ async function save(ev) {
   cfg.start_hidden = $('#f-hidden').checked;
   opt('urgent_notifications', $('#f-urgent').checked);
   opt('raise_on_notification', $('#f-raise').checked);
+  opt('notify_on_unread', $('#f-unread').checked);
   opt('reload_on_resume', $('#f-resume').checked);
   opt('pass_shortcuts', $('#f-keys').checked);
   opt('ignore_certificate_errors', $('#f-cert').checked);

@@ -9,6 +9,22 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [2.4] - 2026-11-06
+
+### Added
+- **"Notify when the unread count goes up"** (`notify_on_unread`). The new
+  Outlook sends its desktop notifications only through Chrome's web push
+  service, which no Electron app can use, so it never asks PWA Pop to show
+  anything. With this option, PWA Pop shows a normal, self-dismissing
+  notification whenever the unread count rises (e.g. "Outlook: 1 new item",
+  "4 unread"). It stays quiet if the site sent its own notification just
+  before. Ticked automatically when you add Outlook.
+- Unread counts now also come from the **app badge API**
+  (`navigator.setAppBadge`, from the page or its service worker), which is
+  what the new Outlook uses. Pages also see themselves as an installed app
+  (`display-mode: standalone`), like in Chrome, so they turn on their
+  installed-app features.
+
 ## [2.3] - 2026-11-06
 
 ### Fixed

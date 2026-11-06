@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-  app, BrowserWindow, clipboard, desktopCapturer, Menu, MenuItemConstructorOptions, NativeImage, powerMonitor,
+  app, BrowserWindow, clipboard, ipcMain, desktopCapturer, Menu, MenuItemConstructorOptions, NativeImage, powerMonitor,
   screen, session as electronSession, Session, shell, Tray, WebContents,
 } from 'electron';
 import { HidFilter, ResolvedApp, getApp, loadApps, upsertApp } from './config';
@@ -86,6 +86,15 @@ export class AppRuntime {
     this.setupLifecycle();
     this.scheduleUpdateChecks();
     this.watchMemory();
+    ipcMain.on('wt:badge', (_e, count: number) => this.onAppBadge(Number(count)));
+    this.ses.serviceWorkers.on('running-status-changed', ({ versionId, runningStatus }) => {
+      if (runningStatus !== 'running') return;
+      const sw = this.ses.serviceWorkers.getWorkerFromVersionID(versionId);
+      if (sw && !this.badgeWorkers.has(versionId)) {
+        this.badgeWorkers.add(versionId);
+        sw.ipc.on('wt:badge', (_e, count: number) => this.onAppBadge(Number(count)));
+      }
+    });
     if (this.pendingCall) {
       const link = this.pendingCall;
       this.pendingCall = null;
@@ -392,7 +401,9 @@ export class AppRuntime {
 
     this.attachWebContents(win.webContents, win, false);
     const wc = win.webContents;
-    wc.on('page-title-updated', (_e, title) => this.setUnread(parseUnread(title, this.cfg.badge_regex)));
+    wc.on('page-title-updated', (_e, title) => {
+      if (!this.badgeFromApi) this.setUnread(parseUnread(title, this.cfg.badge_regex));
+    });
     wc.on('did-finish-load', () => { if (this.state.data.zoom) wc.setZoomFactor(this.state.data.zoom); });
     wc.on('render-process-gone', (_e, details) => {
       if (details.reason === 'clean-exit') return;
@@ -659,9 +670,27 @@ export class AppRuntime {
     ]));
   }
 
+  private badgeFromApi = false;
+  private badgeWorkers = new Set<number>();
+
+  /** navigator.setAppBadge() from the page or its service worker. */
+  private onAppBadge(count: number) {
+    this.badgeFromApi = true; // the page reports its own count; ignore the title
+    this.setUnread(count);
+  }
+
   private setUnread(n: number, force = false) {
     if (n === this.unread && !force) return;
+    const before = this.unread;
     this.unread = n;
+    // "New mail" fallback for sites that can't notify without Chrome's web push.
+    if (this.cfg.notify_on_unread && n > before && before >= 0 && Date.now() - this.notifications.lastSiteNotification > 15_000) {
+      const added = n - Math.max(0, before);
+      this.notifications.notify(
+        `${this.cfg.name}: ${added === 1 ? '1 new item' : `${added} new items`}`,
+        `${n} unread`,
+      );
+    }
     this.tray?.setImage(this.trayImage());
     this.tray?.setToolTip(n > 0 ? `${this.cfg.name} — ${n} unread` : this.cfg.name);
     app.setBadgeCount(n);

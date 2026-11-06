@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('__webtraySW', {
   show: (opts: unknown) => ipcRenderer.send('wt:notify', opts),
   close: (id: number) => ipcRenderer.send('wt:notify-close', id),
   onEvent: (cb: Listener) => { listeners.push(cb); },
+  badge: (count: number | null) => ipcRenderer.send('wt:badge', count),
 });
 
 function installSwShim(): void {
@@ -56,6 +57,15 @@ function installSwShim(): void {
     });
     return Promise.resolve();
   };
+
+  const WN = g.WorkerNavigator && g.WorkerNavigator.prototype;
+  if (WN) {
+    WN.setAppBadge = function (count?: number) {
+      bridge.badge(count === undefined ? -1 : Math.max(0, Math.floor(Number(count) || 0)));
+      return Promise.resolve();
+    };
+    WN.clearAppBadge = function () { bridge.badge(0); return Promise.resolve(); };
+  }
 
   SWR.prototype.getNotifications = function (filter?: { tag?: string }) {
     const tag = filter && filter.tag;
