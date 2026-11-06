@@ -9,6 +9,26 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [2.6] - 2026-11-06
+
+### Fixed
+- **Settings apply to running apps.** Changes saved in the manager (or in
+  apps.yaml) reach a running app within a few seconds. Before, they only took
+  effect after quitting and reopening the app, so new options like "Minimize
+  to the tray" or "Notify when the unread count goes up" seemed to do nothing.
+- **Outlook unread notifications:** when a site sets neither an app badge nor
+  a "(3)" title, PWA Pop reads the count from the page's folder list (e.g. the
+  new Outlook's "Inbox, 3 unread"). Counts seen while the app is starting up
+  are the baseline, so you're only notified about mail that arrives after
+  that.
+- **Minimize to the tray on KDE Wayland:** KDE handles the minimize button
+  itself and the app was never told. The page now reports when it stops being
+  visible while its window is open, and the app goes to the tray. (Switching
+  to another virtual desktop can do the same for apps with this option on;
+  click the tray icon to bring it back.)
+- The manager's checkbox labels no longer break into columns around
+  `tel:`, `callto:` and `sip:`.
+
 ## [2.5] - 2026-11-06
 
 ### Added

@@ -70,7 +70,9 @@ dialog::backdrop { background: rgba(10, 10, 20, .45); }
 form { padding: 24px; display: flex; flex-direction: column; gap: 12px; max-height: 88vh; overflow: auto; }
 form h2 { margin: 0 0 4px; font-size: 18px; }
 label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 13px; }
-label.check { flex-direction: row; align-items: center; gap: 8px; font-weight: normal; }
+label.check { flex-direction: row; align-items: flex-start; gap: 8px; font-weight: normal; }
+label.check input { margin-top: 3px; flex: none; }
+label.check span { flex: 1; }
 input[type=text], textarea {
   font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
   background: var(--bg); color: var(--text); width: 100%;

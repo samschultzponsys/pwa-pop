@@ -11,7 +11,7 @@ import { defaultIcon, imageFromBuffer, imageHasTransparency, loadIconFile, style
 import { isInstalled, stableIcon } from './desktop';
 import { NotificationBridge } from './notifications';
 import { isSafeExternal, looksLikeAuth, OriginMatcher } from './origins';
-import { assetPath, ensureDir, ICON_DIR, IN_FLATPAK, readVersionMarker, releaseVersion, spawnSelf } from './paths';
+import { assetPath, CONFIG_FILE, ensureDir, ICON_DIR, IN_FLATPAK, readVersionMarker, releaseVersion, spawnSelf } from './paths';
 import { StateStore } from './state';
 import { backgroundCheck, isNewer, UpdateInfo } from './updater';
 
@@ -87,7 +87,17 @@ export class AppRuntime {
     this.scheduleUpdateChecks();
     this.watchMemory();
     this.watchForNewVersion();
+    this.watchUnreadInPage();
     ipcMain.on('wt:badge', (_e, count: number) => this.onAppBadge(Number(count)));
+    ipcMain.on('wt:visibility', (e, state: string) => {
+      // Page hidden while its window is still "shown": the compositor minimized it.
+      if (state === 'hidden' && e.sender === this.win.webContents && this.cfg.minimize_to_tray
+        && this.win.isVisible() && Date.now() - this.shownAt > 1000) {
+        debug('page hidden while window shown: treating as minimize');
+        this.hideAll();
+      }
+    });
+    this.watchConfig();
     this.ses.serviceWorkers.on('running-status-changed', ({ versionId, runningStatus }) => {
       if (runningStatus !== 'running') return;
       const sw = this.ses.serviceWorkers.getWorkerFromVersionID(versionId);
@@ -208,6 +218,69 @@ export class AppRuntime {
     };
     setInterval(tick, 60_000);
     setTimeout(tick, 15_000);
+  }
+
+  // ------------------------------------------------------ live config reload
+  /** Apply setting changes from the manager (apps.yaml) without a restart. */
+  private watchConfig() {
+    let last = 0;
+    try { last = fs.statSync(CONFIG_FILE).mtimeMs; } catch { /* no file */ }
+    setInterval(() => {
+      let m = 0;
+      try { m = fs.statSync(CONFIG_FILE).mtimeMs; } catch { return; }
+      if (m === last) return;
+      last = m;
+      try {
+        const fresh = getApp(this.cfg.id);
+        const before = this.cfg;
+        this.cfg = { ...fresh, iconPath: fresh.iconPath ?? before.iconPath };
+        this.matcher = new OriginMatcher(fresh.allowed_origins);
+        if (fresh.notify_on_unread && !before.notify_on_unread) this.watchUnreadInPage();
+        if (fresh.icon_color !== before.icon_color || fresh.icon_label !== before.icon_label || fresh.icon !== before.icon) {
+          void loadIconFile(this.cfg.iconPath).then((img) => {
+            this.baseIcon = styleIcon(img, this.cfg);
+            if (!this.win.isDestroyed()) this.win.setIcon(this.baseIcon);
+            this.setUnread(this.unread, true);
+          });
+        }
+        if (fresh.name !== before.name) this.tray?.setToolTip(fresh.name);
+        this.refreshMenu();
+        debug('settings reloaded from apps.yaml');
+      } catch (e) {
+        console.warn(`[webtray:${this.cfg.id}] could not reload settings`, e);
+      }
+    }, 3000);
+  }
+
+  // ------------------------------------------- unread count from the page
+  /**
+   * Last resort for notify_on_unread when the site sets neither an app badge
+   * nor a "(3)" title: read "N unread" from the page's folder list, e.g. the
+   * new Outlook's "Inbox, 3 unread" (aria-label/title of the folder entry).
+   */
+  private unreadWatcher: NodeJS.Timeout | null = null;
+
+  private watchUnreadInPage() {
+    if (!this.cfg.notify_on_unread || this.unreadWatcher) return;
+    const script = `(() => {
+      const nums = [];
+      for (const e of document.querySelectorAll('[role=treeitem], [role=navigation] [aria-label], [title], [aria-label]')) {
+        const t = ((e.getAttribute('aria-label') || '') + ' ' + (e.getAttribute('title') || '')).trim();
+        if (!t || t.length > 200) continue;
+        const m = /\\binbox\\b[^\\d]{0,40}?(\\d+)\\s*(?:unread|new)/i.exec(t) || /(\\d+)\\s*(?:unread|new)\\b[^\\d]{0,40}?\\binbox\\b/i.exec(t);
+        if (m) nums.push(Number(m[1]));
+      }
+      return nums.length ? Math.max(...nums) : -1;
+    })()`;
+    const tick = async () => {
+      if (this.quitting || this.badgeFromApi || this.win.isDestroyed()) return;
+      if (parseUnread(this.win.webContents.getTitle(), this.cfg.badge_regex) > 0) return;
+      try {
+        const n: number = await this.win.webContents.executeJavaScript(script, true);
+        if (n >= 0) this.setUnread(n);
+      } catch { /* page navigating */ }
+    };
+    this.unreadWatcher = setInterval(() => { if (this.cfg.notify_on_unread) void tick(); }, 15_000);
   }
 
   // ------------------------------------------------ restart after an update
@@ -719,8 +792,10 @@ export class AppRuntime {
     if (n === this.unread && !force) return;
     const before = this.unread;
     this.unread = n;
+    // Counts seen while the app is starting up are the baseline, not "new" mail.
+    const seeded = Date.now() - this.startedAt > 45_000;
     // "New mail" fallback for sites that can't notify without Chrome's web push.
-    if (this.cfg.notify_on_unread && n > before && before >= 0 && Date.now() - this.notifications.lastSiteNotification > 15_000) {
+    if (this.cfg.notify_on_unread && seeded && n > before && before >= 0 && Date.now() - this.notifications.lastSiteNotification > 15_000) {
       const added = n - Math.max(0, before);
       this.notifications.notify(
         `${this.cfg.name}: ${added === 1 ? '1 new item' : `${added} new items`}`,

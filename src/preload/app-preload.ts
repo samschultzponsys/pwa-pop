@@ -9,6 +9,13 @@
  */
 import { contextBridge, ipcRenderer } from 'electron';
 
+// Tell the main process when the page stops/starts being visible. On KDE
+// Wayland the compositor handles the minimize button itself, so this is how
+// "minimize to tray" notices a minimize.
+document.addEventListener('visibilitychange', () => {
+  ipcRenderer.send('wt:visibility', document.visibilityState);
+});
+
 type Listener = (id: number, type: string) => void;
 const listeners: Listener[] = [];
 ipcRenderer.on('wt:notify-event', (_e, id: number, type: string) => {
