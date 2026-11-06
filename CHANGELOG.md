@@ -9,7 +9,15 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [2.2] - 2026-11-06
+
 ### Added
+- **"How to update" shows a ready-to-paste terminal command** for your
+  install type. It downloads the exact package (e.g.
+  `pwa-pop-2.2-x86_64.flatpak` for Flatpak, the `.rpm` for Fedora), checks it
+  against the release's `SHA256SUMS.txt`, then installs it with the right
+  tool (flatpak, dnf/zypper/rpm, apt, pacman, or unpacks the tar.gz). The
+  README lists the same commands.
 - "Send all keyboard shortcuts to the page" option (`pass_shortcuts`) for
   remote desktop tools such as MeshCentral and web terminals. Ctrl+W, Ctrl+R,
   F5, F12 and Alt+arrows then go to the remote session instead of hiding or

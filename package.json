@@ -1,7 +1,7 @@
 {
   "name": "pwa-pop",
   "productName": "PWA Pop",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Run web apps (Outlook, Claude, Linkus…) as standalone, tray-resident desktop apps on Linux",
   "main": "dist/main.js",
   "license": "MIT",

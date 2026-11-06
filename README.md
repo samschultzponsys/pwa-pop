@@ -6,7 +6,7 @@
 Run Outlook, Claude, the Yeastar Linkus softphone or any other site as a real desktop app,
 with its own window, tray icon, login, notifications, unread badge, autostart and headset buttons.</p>
 
-<p align="center">Current version: <b>2.1</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
+<p align="center">Current version: <b>2.2</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
 
 ---
 
@@ -273,6 +273,36 @@ by `webtray --check-update`).
 Every download is checked against the release's `SHA256SUMS.txt` before it is
 installed. Running apps switch to the new version when you restart them
 (Quit from the tray, then open them again).
+
+### Updating from a terminal
+
+Each command downloads the right package from the release, checks it against
+`SHA256SUMS.txt` and installs it. Replace `2.2` with the version you want; the
+manager's **How to update** fills in the current one for you.
+
+Flatpak:
+
+```bash
+cd ~/Downloads && curl -fL -o pwa-pop-2.2-x86_64.flatpak https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/pwa-pop-2.2-x86_64.flatpak && curl -fsSL https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/SHA256SUMS.txt | grep " pwa-pop-2.2-x86_64.flatpak$" | sha256sum -c - && flatpak install --user ./pwa-pop-2.2-x86_64.flatpak
+```
+
+Fedora / RHEL (rpm):
+
+```bash
+cd /tmp && curl -fL -o pwa-pop-2.2-x86_64.rpm https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/pwa-pop-2.2-x86_64.rpm && curl -fsSL https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/SHA256SUMS.txt | grep " pwa-pop-2.2-x86_64.rpm$" | sha256sum -c - && sudo dnf install ./pwa-pop-2.2-x86_64.rpm
+```
+
+Debian / Ubuntu (deb):
+
+```bash
+cd /tmp && curl -fL -o pwa-pop-2.2-amd64.deb https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/pwa-pop-2.2-amd64.deb && curl -fsSL https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/SHA256SUMS.txt | grep " pwa-pop-2.2-amd64.deb$" | sha256sum -c - && sudo apt install ./pwa-pop-2.2-amd64.deb
+```
+
+Arch (pacman):
+
+```bash
+cd /tmp && curl -fL -o pwa-pop-2.2-x64.pacman https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/pwa-pop-2.2-x64.pacman && curl -fsSL https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/SHA256SUMS.txt | grep " pwa-pop-2.2-x64.pacman$" | sha256sum -c - && sudo pacman -U ./pwa-pop-2.2-x64.pacman
+```
 
 ### Maintainer setup for the Flatpak repository (one time)
 

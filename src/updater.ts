@@ -297,10 +297,51 @@ async function flatpakRepoOnline(): Promise<boolean> {
 }
 
 /** Install-specific "how do I update" instructions for the manager and CLI. */
+/** Exact release file name for an install kind and version. */
+export function packageFile(kind: InstallKind, v: string): string | null {
+  switch (kind) {
+    case 'flatpak': return `pwa-pop-${v}-x86_64.flatpak`;
+    case 'manual': return `pwa-pop-${v}-x64.tar.gz`;
+    default: return assetName(kind, v);
+  }
+}
+
+/**
+ * One terminal command that downloads the right package for this install,
+ * checks it against the release's SHA256SUMS.txt and installs it.
+ */
+export function curlCommand(kind: InstallKind, v: string, opts: { rpmTool?: string; dir?: string; appImage?: string } = {}): string | null {
+  const name = packageFile(kind, v);
+  if (!name) return null;
+  const base = `https://github.com/${REPO}/releases/download/v${v}`;
+  const fetch = `curl -fL -o ${name} ${base}/${name} && curl -fsSL ${base}/SHA256SUMS.txt | grep " ${name}$" | sha256sum -c -`;
+  switch (kind) {
+    case 'flatpak': return `cd ~/Downloads && ${fetch} && flatpak install --user ./${name}`;
+    case 'rpm': {
+      const t = opts.rpmTool ?? 'dnf';
+      const inst = t === 'dnf' ? `sudo dnf install ./${name}` : t === 'zypper' ? `sudo zypper install ./${name}` : `sudo rpm -U ./${name}`;
+      return `cd /tmp && ${fetch} && ${inst}`;
+    }
+    case 'deb': return `cd /tmp && ${fetch} && sudo apt install ./${name}`;
+    case 'pacman': return `cd /tmp && ${fetch} && sudo pacman -U ./${name}`;
+    case 'appimage': {
+      const target = opts.appImage ?? '~/Applications/PWA-Pop.AppImage';
+      return `cd /tmp && ${fetch} && chmod +x ${name} && mv ${name} "${target}"`;
+    }
+    case 'manual': return `cd /tmp && ${fetch} && tar -xzf ${name} --strip-components=1 -C "${opts.dir ?? '.'}"`;
+    default: return null;
+  }
+}
+
+/** Install-specific "how do I update" instructions for the manager and CLI. */
 export async function updateGuide(): Promise<UpdateGuide> {
   const kind = await installKind();
-  const v = readState().latest && isNewer(readState().latest!, releaseVersion()) ? readState().latest! : '<version>';
-  const releases = `https://github.com/${REPO}/releases/latest`;
+  const st = readState();
+  // The newest version we know of; never a placeholder.
+  const v = st.latest && !isNewer(releaseVersion(), st.latest) ? st.latest : releaseVersion();
+  const newer = isNewer(v, releaseVersion());
+  const what = newer ? `PWA Pop ${v}` : `PWA Pop ${v} again (you already have it)`;
+  const curlStep = (cmd: string | null): GuideStep[] => (cmd ? [{ text: `Download, verify and install ${what} in one go (paste into a terminal):`, command: cmd }] : []);
   switch (kind) {
     case 'flatpak': {
       const branch = flatpakBranch();
@@ -310,24 +351,28 @@ export async function updateGuide(): Promise<UpdateGuide> {
         return {
           kind, label: 'Flatpak',
           summary: 'Updates arrive automatically through Discover (or GNOME Software).',
-          steps: [{ text: 'To update right away, run this in a terminal:', command: `flatpak update ${FLATPAK_ID}` }],
+          steps: [
+            { text: 'To update right away, run this in a terminal:', command: `flatpak update ${FLATPAK_ID}` },
+            ...curlStep(curlCommand(kind, v)).map((x) => ({ ...x, text: 'Or install the release file directly:' })),
+          ],
         };
       }
-      const file = path.join(os.homedir(), 'Downloads', `pwa-pop-${v}-x86_64.flatpak`);
-      const steps: GuideStep[] = v === '<version>'
-        ? [{ text: 'When a new version is out, download its .flatpak from the release page and run:', command: `flatpak install --user ./pwa-pop-${v}-x86_64.flatpak` }]
-        : [
-          { text: `Click Download to save pwa-pop-${v}-x86_64.flatpak to your Downloads folder (checked against the release's checksums).`, download: true },
-          { text: 'Then run this in a terminal:', command: `flatpak install --user "${file}"` },
-        ];
+      const file = path.join(os.homedir(), 'Downloads', packageFile(kind, v)!);
+      const steps: GuideStep[] = [...curlStep(curlCommand(kind, v))];
+      if (newer) {
+        steps.push(
+          { text: `Or click Download to save ${packageFile(kind, v)} to your Downloads folder (checked against the release's checksums)…`, download: true },
+          { text: '…then run:', command: `flatpak install --user "${file}"` },
+        );
+      }
       if (!tracksRepo) {
         steps.push({ text: 'Or install from the PWA Pop repository once, and Discover keeps it up to date from then on:', command: `flatpak install --user ${PAGES_URL}pwa-pop.flatpakref` });
       }
       return {
         kind, label: 'Flatpak',
         summary: tracksRepo
-          ? 'This Flatpak will update through Discover once the PWA Pop Flatpak repository is online. Until then, install new versions by hand.'
-          : 'This Flatpak was installed from a file that does not receive updates. Install new versions by hand, or switch to the repository below.',
+          ? 'This Flatpak will update through Discover once the PWA Pop Flatpak repository is online. Until then, install new versions with the command below.'
+          : 'This Flatpak was installed from a file that does not receive updates. Install new versions with the command below, or switch to the repository.',
         steps,
       };
     }
@@ -335,18 +380,19 @@ export async function updateGuide(): Promise<UpdateGuide> {
       return {
         kind, label: 'AppImage', where: process.env.APPIMAGE,
         summary: 'Click "Install update" when one is available. The AppImage file is replaced in place.',
-        steps: [{ text: 'Or from a terminal:', command: `"${process.env.APPIMAGE}" --update` }],
+        steps: [
+          { text: 'Or from a terminal:', command: `"${process.env.APPIMAGE}" --update` },
+          ...curlStep(curlCommand(kind, v, { appImage: process.env.APPIMAGE })),
+        ],
       };
     case 'rpm': {
       const tool = fs.existsSync('/usr/bin/dnf') ? 'dnf' : fs.existsSync('/usr/bin/zypper') ? 'zypper' : 'rpm';
-      const cmd = tool === 'dnf' ? `sudo dnf install ./pwa-pop-${v}-x86_64.rpm`
-        : tool === 'zypper' ? `sudo zypper install ./pwa-pop-${v}-x86_64.rpm` : `sudo rpm -U ./pwa-pop-${v}-x86_64.rpm`;
       return {
         kind, label: 'RPM package', where: '/opt/webtray',
         summary: 'Click "Install update" when one is available. It asks for your password, then updates the package.',
         steps: [
           { text: 'Or from a terminal:', command: 'webtray --update' },
-          { text: `Or download pwa-pop-${v}-x86_64.rpm from the release page and run:`, command: cmd },
+          ...curlStep(curlCommand(kind, v, { rpmTool: tool })),
         ],
       };
     }
@@ -354,26 +400,20 @@ export async function updateGuide(): Promise<UpdateGuide> {
       return {
         kind, label: 'Debian package', where: '/opt/webtray',
         summary: 'Click "Install update" when one is available. It asks for your password, then updates the package.',
-        steps: [
-          { text: 'Or from a terminal:', command: 'webtray --update' },
-          { text: `Or download pwa-pop-${v}-amd64.deb from the release page and run:`, command: `sudo apt install ./pwa-pop-${v}-amd64.deb` },
-        ],
+        steps: [{ text: 'Or from a terminal:', command: 'webtray --update' }, ...curlStep(curlCommand(kind, v))],
       };
     case 'pacman':
       return {
         kind, label: 'Arch package', where: '/opt/webtray',
         summary: 'Click "Install update" when one is available. It asks for your password, then updates the package.',
-        steps: [
-          { text: 'Or from a terminal:', command: 'webtray --update' },
-          { text: `Or download pwa-pop-${v}-x64.pacman from the release page and run:`, command: `sudo pacman -U ./pwa-pop-${v}-x64.pacman` },
-        ],
+        steps: [{ text: 'Or from a terminal:', command: 'webtray --update' }, ...curlStep(curlCommand(kind, v))],
       };
     case 'manual': {
       const dir = path.dirname(fs.realpathSync(process.execPath));
       return {
         kind, label: 'tar.gz archive', where: dir,
-        summary: 'This copy cannot update itself. Download the new tar.gz and extract it over this folder.',
-        steps: [{ text: `Download pwa-pop-${v}-x64.tar.gz from ${releases}, quit all PWA Pop apps, then run:`, command: `tar -xzf pwa-pop-${v}-x64.tar.gz --strip-components=1 -C "${dir}"` }],
+        summary: 'This copy cannot update itself. Quit all PWA Pop apps, then run the command below to unpack the new version over this folder.',
+        steps: curlStep(curlCommand(kind, v, { dir })),
       };
     }
     default:
