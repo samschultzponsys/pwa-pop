@@ -6,7 +6,7 @@
 Run Outlook, Claude, the Yeastar Linkus softphone or any other site as a real desktop app,
 with its own window, tray icon, login, notifications, unread badge, autostart and headset buttons.</p>
 
-<p align="center">Current version: <b>1.8</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
+<p align="center">Current version: <b>1.9</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
 
 ---
 
@@ -159,6 +159,8 @@ you and keeps your comments. A full, commented example is in
 | `ignore_certificate_errors` | `false` | Accept self-signed certificates on allowed origins only. |
 | `user_agent` | Chrome UA | Override the user agent. |
 | `width`, `height` | 1200×800 | Initial size. |
+| `handle_schemes` | – | Link types this app opens and dials, e.g. `[tel, callto, sip]` (click-to-call). The app becomes their default. |
+| `dial_input`, `dial_button`, `dial_open` | – | CSS selectors for click-to-call, set from the app's right-click menu ("Use for click-to-call"). |
 | `memory_limit_mb` | – | Reload, then restart, the app when it uses more than this many MB. Never during calls or while you're using it. |
 | `icon_color` | – | Recolour the icon: `blue`, `green`, `purple`, `orange`, `teal`, `pink`, `red`, `yellow`. Used for duplicates. |
 | `icon_label` | – | 1–2 characters in a coloured chip on the icon's top-left corner (e.g. `2` or `W`). |
@@ -183,6 +185,15 @@ settings. In the manager, click **Duplicate** on an app. The copy gets a unique
 ID and name (`claude-2`, "Claude (2)"), a different icon colour and a numbered
 label so the tray icons are easy to tell apart. Open it and sign in with the
 other account. Rename it to something like "Claude (Work)" whenever you like.
+
+### Click-to-call (Linkus and other softphones)
+
+Edit the softphone app and tick **Open phone links (tel:, callto:, sip:)**.
+Clicking a phone number or call icon anywhere (ConnectWise, CRMs, email,
+browsers) then opens the app and dials the number. If it opens the app but
+doesn't dial, right-click the dialpad's number field and choose **Use for
+click-to-call → Number field**, then the same on the call button. Use **Test**
+in that menu to check it without placing a call.
 
 ### Headsets
 

@@ -4,7 +4,8 @@ import {
   app, BrowserWindow, clipboard, desktopCapturer, Menu, MenuItemConstructorOptions, NativeImage, powerMonitor,
   screen, session as electronSession, Session, shell, Tray, WebContents,
 } from 'electron';
-import { HidFilter, ResolvedApp, getApp } from './config';
+import { HidFilter, ResolvedApp, getApp, loadApps, upsertApp } from './config';
+import { dialScript, findCallLink, numberFromLink, selectorScript } from './calls';
 import { badgeIcon, parseUnread } from './badge';
 import { defaultIcon, imageFromBuffer, imageHasTransparency, loadIconFile, styleIcon } from './icons';
 import { isInstalled, stableIcon } from './desktop';
@@ -58,7 +59,7 @@ export class AppRuntime {
   private notifications: NotificationBridge;
   private preload = path.join(__dirname, 'preload', 'app-preload.js');
 
-  constructor(cfg: ResolvedApp, private startHidden: boolean) {
+  constructor(cfg: ResolvedApp, private startHidden: boolean, private pendingCall: string | null = null) {
     this.cfg = cfg;
     this.matcher = new OriginMatcher(cfg.allowed_origins);
     this.state = new StateStore(cfg.id);
@@ -85,6 +86,69 @@ export class AppRuntime {
     this.setupLifecycle();
     this.scheduleUpdateChecks();
     this.watchMemory();
+    if (this.pendingCall) {
+      const link = this.pendingCall;
+      this.pendingCall = null;
+      this.win.webContents.once('did-finish-load', () => setTimeout(() => void this.dial(link), 1500));
+    }
+  }
+
+  // ------------------------------------------------------------ click-to-call
+  private dialing = false;
+
+  /** Type the number from a tel:/callto:/sip: link into the softphone and press call. */
+  async dial(link: string, dry = false) {
+    const num = numberFromLink(link);
+    if (!num) return;
+    this.showAll();
+    if (this.dialing) return;
+    this.dialing = true;
+    const wc = this.win.webContents;
+    try {
+      debug(`dialing ${num} (from ${link})`);
+      const sel = { input: this.cfg.dial_input, button: this.cfg.dial_button, open: this.cfg.dial_open, dry };
+      const result: string = await wc.executeJavaScript(dialScript(num, sel), true);
+      debug(`dial result: ${result}`);
+      if (dry) {
+        this.notifications.notify(`${this.cfg.name}: click-to-call test`, result === 'no-input'
+          ? 'No number field found. Right-click the dialpad field and choose "Use for click-to-call: number field".'
+          : result === 'dry-button' ? 'Number field found and filled; the call button is outlined in red. Nothing was dialed.'
+            : 'Number field found and filled, but no call button: Enter will be pressed instead. Right-click the call button and choose "Call button" to set it.');
+        return;
+      }
+      if (result === 'no-button') {
+        // Press a real Enter in the number field (some dialpads only call on Enter).
+        wc.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
+        wc.sendInputEvent({ type: 'char', keyCode: '\r' });
+        wc.sendInputEvent({ type: 'keyUp', keyCode: 'Return' });
+      } else if (result === 'no-input') {
+        clipboard.writeText(num);
+        this.notifications.notify(`${this.cfg.name}: couldn't find the dialpad`,
+          `${num} is on the clipboard. Right-click the number field in ${this.cfg.name} and choose "Use for click-to-call: number field" so it dials directly next time.`);
+      }
+    } catch (e) {
+      clipboard.writeText(num);
+      console.warn(`[webtray:${this.cfg.id}] dial failed`, e);
+    } finally {
+      this.dialing = false;
+    }
+  }
+
+  /** Remember a click-to-call selector picked with the right-click menu. */
+  private async learnSelector(wc: WebContents, x: number, y: number, kind: 'input' | 'button' | 'open') {
+    try {
+      const selector: string | null = await wc.executeJavaScript(selectorScript(x, y, kind), true);
+      if (!selector) return;
+      const key = kind === 'input' ? 'dial_input' : kind === 'button' ? 'dial_button' : 'dial_open';
+      const current = loadApps().find((a) => a.id === this.cfg.id);
+      if (!current) return;
+      upsertApp({ ...current, [key]: selector });
+      (this.cfg as any)[key] = selector;
+      const what = kind === 'input' ? 'number field' : kind === 'button' ? 'call button' : 'dialpad tab';
+      this.notifications.notify(`${this.cfg.name}: click-to-call ${what} saved`, selector);
+    } catch (e) {
+      console.warn('[webtray] could not save selector', e);
+    }
   }
 
   // ------------------------------------------------------------ memory limit
@@ -439,6 +503,18 @@ export class AppRuntime {
     items.push({ label: 'Back', enabled: wc.navigationHistory.canGoBack(), click: () => wc.navigationHistory.goBack() });
     items.push({ label: 'Reload', click: () => wc.reload() });
     items.push({ label: 'Open page in browser', click: () => this.openExternal(wc.getURL()) });
+    if (this.cfg.handle_schemes?.length) {
+      items.push({ type: 'separator' }, {
+        label: 'Use for click-to-call',
+        submenu: [
+          { label: 'Number field (dialpad input)', click: () => void this.learnSelector(wc, p.x, p.y, 'input') },
+          { label: 'Call button', click: () => void this.learnSelector(wc, p.x, p.y, 'button') },
+          { label: 'Dialpad tab (opens the number field)', click: () => void this.learnSelector(wc, p.x, p.y, 'open') },
+          { type: 'separator' },
+          { label: 'Test (fills in 123, does not call)', click: () => void this.dial('tel:123', true) },
+        ],
+      });
+    }
     items.push({ type: 'separator' }, { label: 'Inspect element', click: () => wc.inspectElement(p.x, p.y) });
     Menu.buildFromTemplate(items).popup();
   }
@@ -608,6 +684,8 @@ export class AppRuntime {
   private setupLifecycle() {
     app.on('second-instance', (_e, argv) => {
       debug(`second-instance ${argv.join(' ')}`);
+      const call = this.cfg.handle_schemes?.length ? findCallLink(argv, this.cfg.handle_schemes) : null;
+      if (call) { void this.dial(call); return; }
       if (argv.includes('--hidden')) return;
       this.showAll();
     });

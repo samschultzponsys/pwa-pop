@@ -32,6 +32,8 @@ finish-args:
   - --filesystem=xdg-config/webtray:create
   - --filesystem=xdg-config/autostart:create
   - --filesystem=xdg-data/applications:create
+  # Set PWA Pop apps as the default for tel:/callto:/sip: links (click-to-call).
+  - --filesystem=xdg-config/mimeapps.list
   - --filesystem=xdg-download
   - --env=ELECTRON_OZONE_PLATFORM_HINT=auto
 modules:

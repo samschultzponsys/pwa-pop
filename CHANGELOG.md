@@ -9,6 +9,22 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [1.9] - 2026-11-06
+
+### Added
+- **Click-to-call.** Tick "Open phone links" on a softphone app (e.g. Linkus).
+  PWA Pop registers it for `tel:`, `callto:` and `sip:` links and makes it the
+  default, so clicking a phone icon in ConnectWise, a CRM or an email opens the
+  app and **dials the number**. It shows the app, types the cleaned number
+  (`+12059797522`) into the dialpad and presses call, like Yeastar's own Linkus
+  browser extension.
+- The dialpad is found automatically. If a softphone's layout isn't
+  recognised, right-click its number field / call button / dialpad tab and
+  choose **Use for click-to-call**. PWA Pop remembers it (`dial_input`,
+  `dial_button`, `dial_open`). The same menu has a test that fills in a
+  number without calling. If dialling fails, the number is copied to the
+  clipboard and a notification explains what to do.
+
 ## [1.8] - 2026-11-06
 
 ### Added

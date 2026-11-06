@@ -99,3 +99,31 @@ test('icon recolouring and transparency detection', () => {
   const full = { data: Buffer.alloc(W * W * 4, 255), width: W, height: W };
   assert.ok(!hasTransparency(full));
 });
+
+test('click-to-call link parsing', () => {
+  const { numberFromLink, findCallLink } = require('../dist/calls');
+  assert.strictEqual(numberFromLink('callto:+12059797522'), '+12059797522');
+  assert.strictEqual(numberFromLink('tel:+1-205-979-7522;ext=102'), '+12059797522');
+  assert.strictEqual(numberFromLink('tel:%2B1%20(205)%20979-7522'), '+12059797522');
+  assert.strictEqual(numberFromLink('callto://+12059797522'), '+12059797522');
+  assert.strictEqual(numberFromLink('sip:102@pbx.example.com'), '102');
+  assert.strictEqual(numberFromLink('tel:*97'), '*97');
+  assert.strictEqual(findCallLink(['/app/bin/webtray', '--app', 'linkus', 'callto:+1205']), 'callto:+1205');
+  assert.strictEqual(findCallLink(['--app', 'linkus', 'https://x']), null);
+  assert.strictEqual(findCallLink(['sip:1@x'], ['tel']), null);
+});
+
+test('default link handler in mimeapps.list', () => {
+  const { setDefaultCallHandler, clearCallHandler } = require('../dist/calls');
+  const file = path.join(tmp, 'mimeapps.list');
+  fs.writeFileSync(file, '[Default Applications]\ntext/html=firefox.desktop\nx-scheme-handler/tel=other.desktop;\n');
+  setDefaultCallHandler('webtray-linkus.desktop', ['tel', 'callto']);
+  let t = fs.readFileSync(file, 'utf8');
+  assert.match(t, /text\/html=firefox\.desktop/);
+  assert.match(t, /x-scheme-handler\/tel=webtray-linkus\.desktop;/);
+  assert.match(t, /\[Added Associations\][^[]*x-scheme-handler\/callto=webtray-linkus\.desktop;/);
+  clearCallHandler('webtray-linkus.desktop');
+  t = fs.readFileSync(file, 'utf8');
+  assert.doesNotMatch(t, /webtray-linkus/);
+  assert.match(t, /text\/html=firefox\.desktop/);
+});

@@ -19,6 +19,7 @@ function hostDataHome(): string {
   return process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share');
 }
 
+export const CONFIG_HOME = hostConfigHome();
 export const CONFIG_DIR = path.join(hostConfigHome(), 'webtray');
 export const CONFIG_FILE = path.join(CONFIG_DIR, 'apps.yaml');
 export const ICON_DIR = path.join(CONFIG_DIR, 'icons');

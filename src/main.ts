@@ -174,7 +174,9 @@ function main() {
     const hidden = flag('--hidden') || cfg.start_hidden;
     app.whenReady().then(async () => {
       const { AppRuntime } = await import('./runtime');
-      await new AppRuntime(cfg, hidden).start();
+      const { findCallLink } = await import('./calls');
+      const call = cfg.handle_schemes?.length ? findCallLink(process.argv, cfg.handle_schemes) : null;
+      await new AppRuntime(cfg, hidden && !call, call).start();
     }).catch((e) => fail(e?.stack ?? String(e)));
     return;
   }

@@ -33,6 +33,7 @@
   hid_devices: [{ vendorId: 0x6993 }]   # auto-select the Yealink WH64 headset
   urgent_notifications: true            # incoming-call toasts stay on screen
   reload_on_resume: true                # re-register the SIP connection after sleep
+  handle_schemes: [tel, callto, sip]    # click-to-call from ConnectWise, CRMs, email…
 
 - id: outlook
   name: Outlook

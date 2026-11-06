@@ -422,6 +422,7 @@ async function openEditor(cfg, iconUrl, mode = cfg ? 'edit' : 'add') {
   $('#f-resume').checked = !!cfg?.reload_on_resume;
   $('#f-cert').checked = !!cfg?.ignore_certificate_errors;
   $('#f-memlimit').value = cfg?.memory_limit_mb || '';
+  $('#f-calls').checked = !!(cfg?.handle_schemes || []).length;
   $('#f-menu').checked = true;
   $('#f-origins').value = (cfg?.allowed_origins || []).join('\n');
   $('#f-perms').value = (cfg?.extra_permissions || []).join(', ');
@@ -449,6 +450,8 @@ function openDuplicate(c, baseIcon) {
     icon_label: n ? String(n) : '',
   };
   delete copy.icon;
+  // Only one app should own phone links.
+  delete copy.handle_schemes;
   openEditor(copy, baseIcon, 'duplicate');
 }
 
@@ -514,6 +517,7 @@ async function save(ev) {
   opt('reload_on_resume', $('#f-resume').checked);
   opt('ignore_certificate_errors', $('#f-cert').checked);
   opt('icon_auto', iconAuto);
+  if ($('#f-calls').checked) cfg.handle_schemes = ['tel', 'callto', 'sip']; else delete cfg.handle_schemes;
   const mem = parseInt($('#f-memlimit').value, 10);
   if (mem >= 200) cfg.memory_limit_mb = mem; else delete cfg.memory_limit_mb;
   const style = styleFields();
@@ -530,7 +534,8 @@ async function save(ev) {
   btn.disabled = true;
   try {
     await api.save(cfg, icon, editing?.id ?? null);
-    if ($('#f-menu').checked) await api.install(id);
+    // Phone links need the menu entry (that is what the desktop opens them with).
+    if ($('#f-menu').checked || cfg.handle_schemes) await api.install(id);
     dlg.close();
     toast(template && !editing ? `${name} created — open it and sign in with the other account` : `${name} saved`);
     await refresh();

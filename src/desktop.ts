@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { nativeImage } from 'electron';
 import { defaultIcon, styleIcon } from './icons';
+import { clearCallHandler, setDefaultCallHandler } from './calls';
 import { AppConfig, resolveApp, resolveIconPath } from './config';
 import {
   APPLICATIONS_DIR, AUTOSTART_DIR, assetPath, desktopQuote, ensureDir, ICON_DIR, IN_FLATPAK, launcherCommand, WAYLAND_FLAGS,
@@ -22,11 +23,12 @@ function escapeValue(v: string): string {
   return v.replace(/\\/g, '\\\\').replace(/\n/g, '\\n');
 }
 
-function execLine(args: string[]): string {
+function execLine(args: string[], fieldCode = ''): string {
   const cmd = launcherCommand();
   // Chromium switches must not go to `flatpak run` itself, only to the app.
   const flags = IN_FLATPAK ? [] : WAYLAND_FLAGS;
-  return [...cmd, ...flags, ...args].map(desktopQuote).join(' ');
+  // Field codes such as %u must not be quoted.
+  return [...cmd, ...flags, ...args].map(desktopQuote).join(' ') + (fieldCode ? ` ${fieldCode}` : '');
 }
 
 /**
@@ -52,7 +54,7 @@ function entry(app: AppConfig, icon: string, args: string[], extra: Record<strin
     Name: app.name,
     GenericName: 'Web App',
     Comment: `${app.name} — runs in the tray with PWA Pop`,
-    Exec: execLine(args),
+    Exec: execLine(args, extra['X-WebTray-FieldCode'] ?? ''),
     Icon: icon,
     Terminal: 'false',
     Categories: 'Network;WebBrowser;',
@@ -61,6 +63,7 @@ function entry(app: AppConfig, icon: string, args: string[], extra: Record<strin
     'X-WebTray-Id': app.id,
     ...extra,
   };
+  delete fields['X-WebTray-FieldCode'];
   return '[Desktop Entry]\n' + Object.entries(fields).map(([k, v]) => `${k}=${escapeValue(v)}`).join('\n') + '\n';
 }
 
@@ -70,7 +73,18 @@ export function installApp(app: AppConfig): InstallResult {
   const r = resolveApp(app);
   const icon = stableIcon(app);
   ensureDir(APPLICATIONS_DIR);
-  fs.writeFileSync(desktopFile(app.id), entry(app, icon, ['--app', app.id]), { mode: 0o755 });
+  const schemes = (app.handle_schemes ?? []).filter((x) => /^[a-z][a-z0-9+.-]*$/i.test(x));
+  const extra: Record<string, string> = schemes.length
+    ? { MimeType: schemes.map((x) => `x-scheme-handler/${x};`).join(''), 'X-WebTray-FieldCode': '%u' }
+    : {};
+  fs.writeFileSync(desktopFile(app.id), entry(app, icon, ['--app', app.id], extra), { mode: 0o755 });
+  const file = `${desktopId(app.id)}.desktop`;
+  try {
+    clearCallHandler(file);
+    if (schemes.length) setDefaultCallHandler(file, schemes);
+  } catch (e) {
+    console.warn('[webtray] could not register the link handler', e);
+  }
   let auto: string | null = null;
   if (r.autostart) auto = setAutostart(app, true);
   else setAutostart(app, false);
@@ -97,6 +111,8 @@ export function setAutostart(app: AppConfig, enabled: boolean): string | null {
 
 export function uninstallApp(id: string): string[] {
   const removed: string[] = [];
+  clearCallHandler(`${desktopId(id)}.desktop`);
+  clearCallHandler(`${legacyDesktopId(id)}.desktop`);
   const legacy = [path.join(APPLICATIONS_DIR, `${legacyDesktopId(id)}.desktop`), path.join(AUTOSTART_DIR, `${legacyDesktopId(id)}.desktop`)];
   for (const f of [desktopFile(id), autostartFile(id), ...legacy]) {
     if (fs.existsSync(f)) { fs.rmSync(f, { force: true }); removed.push(f); }

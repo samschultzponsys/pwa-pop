@@ -45,6 +45,15 @@ export interface AppConfig {
    * enough. Never while audio is playing (calls) or while you are using it.
    */
   memory_limit_mb?: number;
+  /**
+   * Open these link types in this app (click-to-call): e.g. [tel, callto, sip].
+   * The app is registered as their handler and set as the default.
+   */
+  handle_schemes?: string[];
+  /** CSS selectors for click-to-call, taught via the right-click menu. */
+  dial_input?: string;
+  dial_button?: string;
+  dial_open?: string;
 }
 
 /** AppConfig with defaults filled in. */
