@@ -9,6 +9,15 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [2.7] - 2026-11-06
+
+### Added
+- **New-mail notifications show the message.** When the unread count goes up,
+  the notification shows the newest unread item from the page's message list:
+  the sender as the title, then the subject and preview (e.g. "Outlook:
+  Melissa Waugh — Fwd: Order Confirmation…"). If the list isn't showing, for
+  example when another folder is open, it falls back to the count.
+
 ## [2.6] - 2026-11-06
 
 ### Fixed

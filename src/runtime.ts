@@ -283,6 +283,39 @@ export class AppRuntime {
     this.unreadWatcher = setInterval(() => { if (this.cfg.notify_on_unread) void tick(); }, 15_000);
   }
 
+  /**
+   * Notification for new items. Shows the newest unread message (sender,
+   * subject, preview) when the page lists it, as in Outlook's message list;
+   * otherwise just the count.
+   */
+  private async notifyNewItems(added: number, total: number) {
+    let lines: string[] = [];
+    try {
+      lines = await this.win.webContents.executeJavaScript(`(() => {
+        const rows = document.querySelectorAll('[role=option], [role=row], [role=listitem], [role=article]');
+        for (const r of rows) {
+          const label = (r.getAttribute('aria-label') || '').toLowerCase();
+          if (!/\\bunread\\b/.test(label)) continue;
+          const text = (r.innerText || '').split('\\n').map((x) => x.trim()).filter(Boolean)
+            // drop times/dates and button text
+            .filter((x) => !/^(\\d{1,2}[:.]\\d{2}\\s*(am|pm)?|yesterday|today|mon|tue|wed|thu|fri|sat|sun|\\d{1,2}\\/\\d{1,2}(\\/\\d{2,4})?)$/i.test(x));
+          if (text.length) return text.slice(0, 4);
+          const al = r.getAttribute('aria-label').replace(/^\\s*unread[,\\s]*/i, '').trim();
+          if (al) return [al];
+        }
+        return [];
+      })()`, true);
+    } catch { /* page busy */ }
+    const many = added > 1 ? ` (+${added - 1} more)` : '';
+    if (lines.length) {
+      const [first, ...rest] = lines;
+      const body = rest.join(' — ').slice(0, 220);
+      this.notifications.notify(`${this.cfg.name}: ${first.slice(0, 80)}${many}`, body || `${total} unread`);
+    } else {
+      this.notifications.notify(`${this.cfg.name}: ${added === 1 ? '1 new item' : `${added} new items`}`, `${total} unread`);
+    }
+  }
+
   // ------------------------------------------------ restart after an update
   private readonly startedAt = Date.now();
   private updatePending: string | null = null;
@@ -796,11 +829,7 @@ export class AppRuntime {
     const seeded = Date.now() - this.startedAt > 45_000;
     // "New mail" fallback for sites that can't notify without Chrome's web push.
     if (this.cfg.notify_on_unread && seeded && n > before && before >= 0 && Date.now() - this.notifications.lastSiteNotification > 15_000) {
-      const added = n - Math.max(0, before);
-      this.notifications.notify(
-        `${this.cfg.name}: ${added === 1 ? '1 new item' : `${added} new items`}`,
-        `${n} unread`,
-      );
+      void this.notifyNewItems(n - Math.max(0, before), n);
     }
     this.tray?.setImage(this.trayImage());
     this.tray?.setToolTip(n > 0 ? `${this.cfg.name} — ${n} unread` : this.cfg.name);
