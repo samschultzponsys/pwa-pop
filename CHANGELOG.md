@@ -9,6 +9,13 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [1.4] - 2026-11-06
+
+### Fixed
+- The Flatpak was missing from the 1.3 release: the CI build stopped at
+  "eu-strip not found". The Flatpak manifest no longer strips Electron's
+  prebuilt binaries, and CI installs `elfutils` anyway.
+
 ## [1.3] - 2026-11-05
 
 First published release since 1.0. It includes everything from 1.1 and 1.2
