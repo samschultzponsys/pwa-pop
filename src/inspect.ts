@@ -7,6 +7,8 @@ export interface SiteInfo {
   name: string;
   allowed_origins: string[];
   icon: string | null;   // data: URL in whatever format the site serves
+  /** Up to 6 icon candidates (data: URLs), best guess first; the manager picks the most transparent. */
+  icons: string[];
   hasManifest: boolean;
   themeColor: string | null;
   notes: string[];
@@ -93,7 +95,7 @@ export async function inspectSite(input: string): Promise<SiteInfo> {
   const notes: string[] = [];
   const info: SiteInfo = {
     url, finalUrl: url, id: slug(parsed.hostname.replace(/^www\./, '').split('.')[0]),
-    name: parsed.hostname.replace(/^www\./, ''), allowed_origins: [parsed.origin], icon: null,
+    name: parsed.hostname.replace(/^www\./, ''), allowed_origins: [parsed.origin], icon: null, icons: [],
     hasManifest: false, themeColor: null, notes,
   };
 
@@ -150,16 +152,20 @@ export async function inspectSite(input: string): Promise<SiteInfo> {
       } catch { /* ignore bad manifests */ }
     } else if (rel.includes('icon')) {
       const size = sizeOf(attr(tag, 'sizes')) || (rel.includes('apple-touch') ? 180 : 32);
-      icons.push({ url: abs, size, score: href.endsWith('.svg') ? 1 : 0 });
+      // apple-touch-icons are always opaque squares: rank them below transparent icons.
+      icons.push({ url: abs, size, score: href.endsWith('.svg') ? 1 : rel.includes('apple-touch') ? -1 : 0 });
     }
   }
   icons.push({ url: new URL('/favicon.ico', parsed.origin).href, size: 16, score: -1 });
 
   icons.sort((a, b) => (b.size >= 128 ? 1000 : b.size) - (a.size >= 128 ? 1000 : a.size) || b.score - a.score || b.size - a.size);
   for (const c of icons) {
-    info.icon = await fetchIcon(c.url);
-    if (info.icon) break;
+    if (info.icons.length >= 6) break;
+    const data = await fetchIcon(c.url);
+    if (data && !info.icons.includes(data)) info.icons.push(data);
   }
+
+  info.icon = info.icons[0] ?? null;
 
   for (const p of PRESETS) {
     if (p.match.test(parsed.hostname) || p.match.test(final.hostname)) {

@@ -1,5 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { nativeImage } from 'electron';
+import { defaultIcon, styleIcon } from './icons';
 import { AppConfig, resolveApp, resolveIconPath } from './config';
 import {
   APPLICATIONS_DIR, AUTOSTART_DIR, assetPath, desktopQuote, ensureDir, ICON_DIR, IN_FLATPAK, launcherCommand, WAYLAND_FLAGS,
@@ -20,16 +22,20 @@ function execLine(args: string[]): string {
   return [...cmd, ...flags, ...args].map(desktopQuote).join(' ');
 }
 
-/** Copy the icon somewhere stable (AppImage mounts are temporary). */
+/**
+ * The icon file a .desktop entry points at. It lives in ~/.config/webtray/icons
+ * (AppImage mounts are temporary) and includes a duplicate's colour/label.
+ */
 export function stableIcon(app: AppConfig): string {
   ensureDir(ICON_DIR);
   const resolved = resolveIconPath(app);
-  if (resolved && resolved.toLowerCase().endsWith('.png')) {
-    return resolved;
-  }
-  const fallback = path.join(ICON_DIR, 'webtray.png');
-  fs.copyFileSync(assetPath('assets', 'icons', '256x256.png'), fallback);
-  return resolved ?? fallback;
+  const styled = !!(app.icon_color || app.icon_label);
+  if (resolved && !styled && /\.(png|svg)$/i.test(resolved)) return resolved;
+  let img = resolved ? nativeImage.createFromPath(resolved) : nativeImage.createEmpty();
+  if (img.isEmpty()) img = defaultIcon();
+  const out = path.join(ICON_DIR, `${app.id}.menu.png`);
+  fs.writeFileSync(out, styleIcon(img, app).resize({ width: 256, height: 256, quality: 'best' }).toPNG());
+  return out;
 }
 
 function entry(app: AppConfig, icon: string, args: string[], extra: Record<string, string> = {}): string {

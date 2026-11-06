@@ -9,6 +9,34 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [1.5] - 2026-11-06
+
+### Added
+- **Duplicate** button on every app in the manager: makes a second copy of an
+  app with its own login (separate profile), e.g. two Claude or two Outlook
+  accounts. Copies get a unique ID (`claude-2`), a readable name
+  ("Claude (2)"), their own icon colour and a numbered corner label. Adding a
+  site you already have does the same automatically.
+- Icon colour and corner label settings (`icon_color`, `icon_label`) for any app.
+  They apply to the tray icon, window icon, menu entry and notifications.
+- Icon picker: the manager now collects several icons from a site, prefers
+  ones with a transparent background, lets you pick another, and has a
+  **Remove background** button. Logos sitting on an opaque white plate (like
+  Microsoft's) have the plate removed automatically.
+- Apps whose icon was chosen automatically switch to the site's own icon after
+  you sign in (`icon_auto`). This fixes Outlook showing a stand-in icon because
+  its start page redirects to the Microsoft sign-in page.
+
+### Fixed
+- **Notifications from service workers now appear.** The new Outlook (and
+  other modern web apps) post desktop notifications from their service worker,
+  which Electron silently dropped: you heard Outlook's sound but saw no popup.
+  A service-worker preload now routes them to native notifications, and
+  clicking one opens the app and delivers `notificationclick` to the site.
+- The unread badge is smaller and stays legible at tray size (one digit, or
+  "9+"), instead of covering most of the icon.
+- Blocked or failed notifications are logged (run with `WEBTRAY_DEBUG=1`).
+
 ## [1.4] - 2026-11-06
 
 ### Fixed

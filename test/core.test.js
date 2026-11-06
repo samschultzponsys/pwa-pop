@@ -78,3 +78,24 @@ test('release version comparison (MAJOR.MINOR, .9 rolls over)', () => {
   assert.ok(!isNewer('v1.0', '1.1'));
   assert.ok(!isNewer('garbage', '1.1'));
 });
+
+test('icon recolouring and transparency detection', () => {
+  const { recolor, dominantHue, hasTransparency, drawChip } = require('../dist/iconstyle');
+  const W = 16;
+  const bm = { data: Buffer.alloc(W * W * 4), width: W, height: W };
+  // Opaque orange square (BGRA) with a transparent border.
+  for (let y = 2; y < 14; y++) for (let x = 2; x < 14; x++) {
+    const i = (y * W + x) * 4;
+    bm.data[i] = 20; bm.data[i + 1] = 110; bm.data[i + 2] = 230; bm.data[i + 3] = 255;
+  }
+  assert.ok(hasTransparency(bm));
+  const before = dominantHue(bm);
+  assert.ok(before >= 15 && before <= 35, `orange hue, got ${before}`);
+  recolor(bm, 215);
+  const after = dominantHue(bm);
+  assert.ok(after >= 205 && after <= 225, `blue after recolour, got ${after}`);
+  assert.strictEqual(bm.data[3], 0, 'transparent pixels stay transparent');
+  drawChip(bm, '2', [37, 99, 235]);
+  const full = { data: Buffer.alloc(W * W * 4, 255), width: W, height: W };
+  assert.ok(!hasTransparency(full));
+});

@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld('webtray', {
   uninstall: call('apps:uninstall'),
   pickIcon: call('app:pickIcon'),
   hidLast: call('app:hidLast'),
+  styleIcon: call('icon:style'),
+  iconColors: call('icon:colors'),
   openConfig: call('app:openConfig'),
   installManager: call('app:installManager'),
   info: call('app:info'),

@@ -6,7 +6,8 @@ import {
 } from 'electron';
 import { HidFilter, ResolvedApp, getApp } from './config';
 import { badgeIcon, parseUnread } from './badge';
-import { defaultIcon, imageFromBuffer, loadIconFile } from './icons';
+import { defaultIcon, imageFromBuffer, imageHasTransparency, loadIconFile, styleIcon } from './icons';
+import { isInstalled, stableIcon } from './desktop';
 import { NotificationBridge } from './notifications';
 import { isSafeExternal, OriginMatcher } from './origins';
 import { assetPath, ensureDir, ICON_DIR, spawnSelf } from './paths';
@@ -74,7 +75,7 @@ export class AppRuntime {
   }
 
   async start(): Promise<void> {
-    this.baseIcon = await loadIconFile(this.cfg.iconPath);
+    this.baseIcon = styleIcon(await loadIconFile(this.cfg.iconPath), this.cfg);
     // No application menu: its default accelerators (Ctrl+W, Ctrl+Q…) would
     // close or quit the app. Editing shortcuts keep working without it.
     Menu.setApplicationMenu(null);
@@ -108,6 +109,21 @@ export class AppRuntime {
 
   private setupSession() {
     const ses = this.ses;
+
+    // Service-worker notifications (new Outlook, Teams…) — see preload/sw-preload.ts.
+    ses.registerPreloadScript({
+      type: 'service-worker',
+      id: 'webtray-sw-notifications',
+      filePath: path.join(__dirname, 'preload', 'sw-preload.js'),
+    });
+    const attachWorker = (versionId: number) => {
+      const sw = ses.serviceWorkers.getWorkerFromVersionID(versionId);
+      if (sw) this.notifications.attachServiceWorker(sw);
+    };
+    ses.serviceWorkers.on('running-status-changed', ({ versionId, runningStatus }) => {
+      if (runningStatus === 'starting' || runningStatus === 'running') attachWorker(versionId);
+    });
+    for (const id of Object.keys(ses.serviceWorkers.getAllRunning())) attachWorker(Number(id));
     ses.setUserAgent(this.cfg.user_agent || cleanUserAgent(ses.getUserAgent()));
     ses.setSpellCheckerLanguages([app.getLocale() || 'en-US']);
 
@@ -248,8 +264,11 @@ export class AppRuntime {
       console.warn(`[webtray:${this.cfg.id}] renderer gone (${details.reason}); reloading`);
       setTimeout(() => { if (!win.isDestroyed()) wc.reload(); }, 2000);
     });
-    if (!this.cfg.iconPath) {
-      wc.once('page-favicon-updated', (_e, favicons) => { void this.adoptFavicon(favicons); });
+    // Use the site's own icon once we are past any sign-in page.
+    if ((!this.cfg.iconPath || this.cfg.icon_auto) && !this.state.data.iconAdopted) {
+      const tryAdopt = () => { void this.adoptSiteIcon(); };
+      wc.on('did-finish-load', tryAdopt);
+      wc.on('page-favicon-updated', tryAdopt);
     }
 
     void win.loadURL(this.cfg.url);
@@ -356,21 +375,70 @@ export class AppRuntime {
     Menu.buildFromTemplate(items).popup();
   }
 
-  private async adoptFavicon(urls: string[]) {
-    for (const url of urls) {
-      try {
-        const res = await this.ses.fetch(url);
-        if (!res.ok) continue;
-        const img = await imageFromBuffer(Buffer.from(await res.arrayBuffer()), res.headers.get('content-type') ?? '');
-        if (!img || img.isEmpty() || img.getSize().width < 16) continue;
-        ensureDir(ICON_DIR);
-        const file = path.join(ICON_DIR, `${this.cfg.id}.png`);
-        fs.writeFileSync(file, img.resize({ width: 256, height: 256, quality: 'best' }).toPNG());
-        this.baseIcon = await loadIconFile(file);
-        this.win.setIcon(this.baseIcon);
-        this.setUnread(this.unread, true);
-        return;
-      } catch { /* try next */ }
+  private adopting = false;
+
+  /**
+   * Replace an automatically chosen icon with the best icon the signed-in page
+   * offers (web app manifest, <link rel=icon>, apple-touch-icon), preferring
+   * icons with a transparent background. Runs once per app.
+   */
+  private async adoptSiteIcon() {
+    const wc = this.win.webContents;
+    if (this.adopting || this.state.data.iconAdopted || wc.isDestroyed()) return;
+    let page: URL;
+    try { page = new URL(wc.getURL()); } catch { return; }
+    if (page.origin !== new URL(this.cfg.url).origin) return; // still on a sign-in page
+    this.adopting = true;
+    try {
+      const found: { href: string; sizes: string; rel: string }[] = await wc.executeJavaScript(`(async () => {
+        const out = [...document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"], link[rel="apple-touch-icon-precomposed"]')]
+          .map((l) => ({ href: l.href, sizes: (l.sizes && l.sizes.value) || '', rel: l.rel }));
+        const m = document.querySelector('link[rel="manifest"]');
+        if (m) {
+          try {
+            const j = await (await fetch(m.href, { credentials: 'include' })).json();
+            for (const i of j.icons || []) {
+              if (String(i.purpose || 'any').includes('any')) out.push({ href: new URL(i.src, m.href).href, sizes: i.sizes || '', rel: 'manifest' });
+            }
+          } catch (e) {}
+        }
+        out.push({ href: new URL('/favicon.ico', location.href).href, sizes: '', rel: 'favicon' });
+        return out;
+      })()`, true);
+      let best: { img: NativeImage; clear: boolean; size: number } | null = null;
+      for (const c of found.slice(0, 12)) {
+        try {
+          const res = await this.ses.fetch(c.href);
+          if (!res.ok) continue;
+          const img = await imageFromBuffer(Buffer.from(await res.arrayBuffer()), res.headers.get('content-type') ?? '');
+          if (!img || img.isEmpty()) continue;
+          const size = Math.min(img.getSize().width, img.getSize().height);
+          if (size < 16) continue;
+          const clear = imageHasTransparency(img);
+          const better = !best
+            || (clear && !best.clear && size >= 32)
+            || (clear === best.clear && size > best.size);
+          if (better) best = { img, clear, size };
+        } catch { /* try the next one */ }
+      }
+      if (!best) return;
+      // Only write into our own icon folder; a hand-picked icon elsewhere is never touched.
+      const file = this.cfg.iconPath && path.dirname(this.cfg.iconPath) === ICON_DIR
+        ? this.cfg.iconPath : path.join(ICON_DIR, `${this.cfg.id}.png`);
+      if (this.cfg.iconPath && file !== this.cfg.iconPath) return;
+      ensureDir(ICON_DIR);
+      fs.writeFileSync(file, best.img.resize({ width: 256, height: 256, quality: 'best' }).toPNG());
+      this.state.update({ iconAdopted: true }, true);
+      this.cfg.iconPath = file;
+      this.baseIcon = styleIcon(await loadIconFile(file), this.cfg);
+      this.win.setIcon(this.baseIcon);
+      this.setUnread(this.unread, true);
+      if (isInstalled(this.cfg.id).menu) stableIcon(this.cfg);
+      debug(`adopted site icon (${best.size}px, transparent: ${best.clear})`);
+    } catch (e) {
+      debug(`icon adoption failed: ${e}`);
+    } finally {
+      this.adopting = false;
     }
   }
 

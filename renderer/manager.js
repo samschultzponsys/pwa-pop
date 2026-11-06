@@ -38,15 +38,17 @@ async function guard(fn) {
 }
 
 // ------------------------------------------------------------------ list
+let apps = [];           // last list from the main process
+
 async function refresh() {
-  const apps = await api.list();
+  apps = await api.list();
   const list = $('#list');
   list.replaceChildren();
   $('#empty').classList.toggle('hidden', apps.length > 0);
   for (const a of apps) list.append(card(a));
 }
 
-function card({ config: c, icon, installed, running }) {
+function card({ config: c, icon, baseIcon, installed, running }) {
   const toggle = (label, key) => el('label', { class: 'check' },
     el('input', {
       type: 'checkbox', checked: !!c[key],
@@ -72,7 +74,8 @@ function card({ config: c, icon, installed, running }) {
     el('div', { class: 'toggles' }, toggle('Autostart', 'autostart'), toggle('Start hidden', 'start_hidden')),
     el('div', { class: 'buttons' },
       el('button', { class: 'primary', onclick: () => guard(async () => { await api.launch(c.id); toast(`Starting ${c.name}…`); setTimeout(refresh, 2500); }) }, running ? 'Show' : 'Open'),
-      el('button', { onclick: () => openEditor(c, icon) }, 'Edit'),
+      el('button', { onclick: () => openEditor(c, baseIcon) }, 'Edit'),
+      el('button', { title: 'Make a second copy with its own login', onclick: () => openDuplicate(c, baseIcon) }, 'Duplicate'),
       installed.menu
         ? el('button', { class: 'ghost', onclick: () => guard(async () => { await api.uninstall(c.id); refresh(); }) }, 'Remove from menu')
         : el('button', { class: 'ghost', onclick: () => guard(async () => { await api.install(c.id); toast('Added to the application menu'); refresh(); }) }, 'Add to menu'),
@@ -82,9 +85,46 @@ function card({ config: c, icon, installed, running }) {
   );
 }
 
+// ------------------------------------------------------- unique names
+const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'app';
+const idTaken = (id) => apps.some((a) => a.config.id === id);
+const nameTaken = (n) => apps.some((a) => a.config.name.toLowerCase() === n.toLowerCase());
+
+/** "claude" -> claude-2 / "Claude (2)", "Claude (2)" -> claude-3 / "Claude (3)"… */
+function nextCopy(id, name) {
+  const baseId = id.replace(/-\d+$/, '');
+  const baseName = name.replace(/\s*\(\d+\)$/, '');
+  for (let n = 2; n < 100; n++) {
+    const cid = `${baseId}-${n}`.slice(0, 48);
+    const cname = `${baseName} (${n})`;
+    if (!idTaken(cid) && !nameTaken(cname)) return { id: cid, name: cname, n };
+  }
+  return { id: `${baseId}-${Date.now() % 10000}`, name: `${baseName} (copy)`, n: 0 };
+}
+
+/** First colour no other app on the same site already uses. */
+function nextColor(url) {
+  let host = '';
+  try { host = new URL(url).host; } catch { /* ignore */ }
+  const used = new Set(apps.filter((a) => { try { return new URL(a.config.url).host === host; } catch { return false; } })
+    .map((a) => a.config.icon_color).filter(Boolean));
+  return iconColors.find((c) => !used.has(c)) || iconColors[0];
+}
+
+/** Siblings on the same site (for automatic colour/label when adding a second copy). */
+function sameSite(url) {
+  try { const h = new URL(url).host; return apps.filter((a) => new URL(a.config.url).host === h); } catch { return []; }
+}
+
 // ----------------------------------------------------------------- icons
 const canvas = $('#icon-canvas');
-const ctx = canvas.getContext('2d');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+let iconColors = [];
+let iconAuto = false;      // icon was chosen automatically (site may upgrade it later)
+let bgBackup = null;       // canvas content before "Remove background"
+let previewTimer = null;
+
+function setIconAuto(v) { iconAuto = v; }
 
 function letterIcon(name, seed) {
   let h = 0;
@@ -104,23 +144,196 @@ function letterIcon(name, seed) {
   ctx.textBaseline = 'middle';
   ctx.fillText((name || '?').trim().charAt(0).toUpperCase(), 128, 140);
   iconDirty = true;
+  bgBackup = null;
+  updatePreview();
 }
 
-function drawIcon(src) {
+function loadImg(src) {
   return new Promise((resolve) => {
     const img = new Image();
-    img.onload = () => {
-      ctx.clearRect(0, 0, 256, 256);
-      const w = img.naturalWidth || 256, h = img.naturalHeight || 256;
-      const s = Math.min(256 / w, 256 / h);
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(img, (256 - w * s) / 2, (256 - h * s) / 2, w * s, h * s);
-      iconDirty = true;
-      resolve(true);
-    };
-    img.onerror = () => resolve(false);
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
     img.src = src;
   });
+}
+
+async function drawIcon(src) {
+  const img = await loadImg(src);
+  if (!img) return false;
+  ctx.clearRect(0, 0, 256, 256);
+  const w = img.naturalWidth || 256, h = img.naturalHeight || 256;
+  const s = Math.min(256 / w, 256 / h);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, (256 - w * s) / 2, (256 - h * s) / 2, w * s, h * s);
+  iconDirty = true;
+  bgBackup = null;
+  updateBgButton();
+  updatePreview();
+  return true;
+}
+
+/** Size and transparency of an icon candidate. */
+async function analyze(src) {
+  const img = await loadImg(src);
+  if (!img) return null;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(img, 0, 0, 64, 64);
+  const d = g.getImageData(0, 0, 64, 64).data;
+  let clear = 0;
+  for (let i = 3; i < d.length; i += 4) if (d[i] < 200) clear++;
+  return { src, size: Math.min(img.naturalWidth || 0, img.naturalHeight || 0) || 64, clear: clear > 64 * 64 * 0.03 };
+}
+
+/** Prefer icons with a transparent background; among those, the biggest. */
+function rank(list) {
+  return list.filter(Boolean).sort((a, b) =>
+    (b.clear && b.size >= 32) - (a.clear && a.size >= 32) || b.size - a.size);
+}
+
+function showChoices(list) {
+  const box = $('#icon-choices');
+  box.replaceChildren();
+  if (list.length < 2) return;
+  box.append(el('span', { class: 'muted' }, 'Other icons from the site:'));
+  for (const c of list) {
+    box.append(el('button', {
+      type: 'button', class: 'choice', title: `${c.size}px${c.clear ? ', transparent' : ''}`,
+      onclick: () => { setIconAuto(true); drawIcon(c.src).then(() => autoRemoveWhitePlate()); },
+    }, el('img', { src: c.src, alt: '' })));
+  }
+}
+
+/** Colour distance in RGB. */
+const dist = (d, i, r, g, b) => Math.hypot(d[i] - r, d[i + 1] - g, d[i + 2] - b);
+
+/**
+ * Make the icon's background transparent: flood-fill from the edges through
+ * pixels that match the most common edge colour (or are already transparent),
+ * then trim and re-centre the logo.
+ */
+function removeBackground() {
+  const W = 256;
+  const imgData = ctx.getImageData(0, 0, W, W);
+  const d = imgData.data;
+  // The background colour: most common colour on the first mostly-opaque ring
+  // (plates are often inset with transparent rounded corners).
+  const bg = plateColor(d, W);
+  if (!bg) return false;
+  const [r, g, b] = bg;
+  const TOL = 42, SOFT = 70;
+  const seen = new Uint8Array(W * W);
+  const stack = [];
+  for (let i = 0; i < W; i++) stack.push(i, (W - 1) * W + i, i * W, i * W + W - 1);
+  let changed = 0;
+  while (stack.length) {
+    const p = stack.pop();
+    if (seen[p]) continue;
+    seen[p] = 1;
+    const i = p * 4;
+    const a = d[i + 3];
+    const dd = dist(d, i, r, g, b);
+    if (a >= 24 && dd > SOFT) continue; // reached the logo
+    if (a >= 24) {
+      // Fully remove close matches, fade the anti-aliased rim.
+      d[i + 3] = dd <= TOL ? 0 : Math.round(a * (dd - TOL) / (SOFT - TOL));
+      changed++;
+      if (dd > TOL) continue;
+    }
+    const x = p % W, y = (p / W) | 0;
+    if (x > 0) stack.push(p - 1);
+    if (x < W - 1) stack.push(p + 1);
+    if (y > 0) stack.push(p - W);
+    if (y < W - 1) stack.push(p + W);
+  }
+  if (changed < W * 4) return false;
+  ctx.putImageData(imgData, 0, 0);
+  trimAndCenter();
+  return true;
+}
+
+/** Ring of pixels `k` px in from the edge. */
+function ring(W, k) {
+  const pts = [];
+  for (let i = k; i < W - k; i++) pts.push([i, k], [i, W - 1 - k], [k, i], [W - 1 - k, i]);
+  return pts;
+}
+
+/** [r,g,b] of a solid background plate, or null when the edges are not a plate. */
+function plateColor(d, W) {
+  for (let k = 0; k < W * 0.2; k += 2) {
+    const pts = ring(W, k);
+    const counts = new Map();
+    let opaque = 0;
+    for (const [x, y] of pts) {
+      const i = (y * W + x) * 4;
+      if (d[i + 3] < 200) continue;
+      opaque++;
+      const key = `${d[i] >> 4},${d[i + 1] >> 4},${d[i + 2] >> 4}`;
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    if (opaque < pts.length * 0.5) continue;
+    const [key, n] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+    if (n < opaque * 0.6) return null; // edges are busy: no plate
+    return key.split(',').map((v) => (Number(v) << 4) + 8);
+  }
+  return null;
+}
+
+/** Crop to the visible pixels and scale back up with a little padding. */
+function trimAndCenter() {
+  const W = 256;
+  const d = ctx.getImageData(0, 0, W, W).data;
+  let x0 = W, y0 = W, x1 = -1, y1 = -1;
+  for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
+    if (d[(y * W + x) * 4 + 3] > 16) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  }
+  if (x1 < 0) return;
+  const w = x1 - x0 + 1, h = y1 - y0 + 1;
+  const tmp = document.createElement('canvas');
+  tmp.width = w; tmp.height = h;
+  tmp.getContext('2d').drawImage(canvas, x0, y0, w, h, 0, 0, w, h);
+  const s = Math.min((W * 0.9) / w, (W * 0.9) / h);
+  ctx.clearRect(0, 0, W, W);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(tmp, (W - w * s) / 2, (W - h * s) / 2, w * s, h * s);
+}
+
+/** Many sites only offer a logo on an opaque white plate: remove it automatically. */
+function autoRemoveWhitePlate() {
+  const c = plateColor(ctx.getImageData(0, 0, 256, 256).data, 256);
+  if (c && c.every((v) => v >= 232)) toggleBackground();
+}
+
+function toggleBackground() {
+  if (bgBackup) {
+    ctx.putImageData(bgBackup, 0, 0);
+    bgBackup = null;
+  } else {
+    const backup = ctx.getImageData(0, 0, 256, 256);
+    if (!removeBackground()) { toast('No solid background found to remove'); return; }
+    bgBackup = backup;
+  }
+  iconDirty = true;
+  updateBgButton();
+  updatePreview();
+}
+
+function updateBgButton() {
+  $('#btn-bg').textContent = bgBackup ? 'Restore background' : 'Remove background';
+}
+
+function styleFields() {
+  return { icon_color: $('#f-color').value || undefined, icon_label: $('#f-label').value.trim().toUpperCase() || undefined };
+}
+
+/** Show the icon exactly as the tray/menu will (colour + label applied). */
+function updatePreview() {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(async () => {
+    $('#icon-preview').src = await api.styleIcon(canvas.toDataURL('image/png'), styleFields());
+  }, 60);
 }
 
 // ---------------------------------------------------------------- editor
@@ -177,14 +390,21 @@ function setError(msg) {
   $('#error').classList.toggle('hidden', !msg);
 }
 
-async function openEditor(cfg, iconUrl) {
-  editing = cfg || null;
+let template = null;     // config whose extra options are kept on save (edit or duplicate source)
+
+async function openEditor(cfg, iconUrl, mode = cfg ? 'edit' : 'add') {
+  editing = mode === 'edit' ? cfg : null;
+  template = cfg || null;
   iconDirty = false;
+  bgBackup = null;
+  setIconAuto(!!cfg?.icon_auto);
   setError('');
   showNotes([]);
+  showChoices([]);
   $('#hid-found').replaceChildren();
   $('#hid-status').textContent = '';
-  $('#editor-title').textContent = cfg ? `Edit ${cfg.name}` : 'Add app';
+  $('#editor-title').textContent = mode === 'edit' ? `Edit ${cfg.name}` : mode === 'duplicate' ? 'Duplicate app' : 'Add app';
+  $('#dup-note').classList.toggle('hidden', mode !== 'duplicate');
   $('#f-url').value = cfg?.url || '';
   $('#f-name').value = cfg?.name || '';
   $('#f-id').value = cfg?.id || '';
@@ -198,12 +418,31 @@ async function openEditor(cfg, iconUrl) {
   $('#f-menu').checked = true;
   $('#f-origins').value = (cfg?.allowed_origins || []).join('\n');
   $('#f-perms').value = (cfg?.extra_permissions || []).join(', ');
+  $('#f-color').value = cfg?.icon_color || '';
+  $('#f-label').value = cfg?.icon_label || '';
   hidDevices = (cfg?.hid_devices || []).map((d) => ({ ...d }));
   renderHid();
   ctx.clearRect(0, 0, 256, 256);
-  if (iconUrl) { await drawIcon(iconUrl); iconDirty = false; }
+  if (iconUrl) await drawIcon(iconUrl);
+  iconDirty = mode === 'duplicate' && !!iconUrl; // a copy needs its own icon file
+  updateBgButton();
+  updatePreview();
   dlg.showModal();
-  if (!cfg) $('#f-url').focus();
+  if (mode === 'add') $('#f-url').focus();
+  else if (mode === 'duplicate') { $('#f-name').focus(); $('#f-name').select(); }
+}
+
+/** A second copy of an app: own ID, profile (login), colour and label. */
+function openDuplicate(c, baseIcon) {
+  const { id, name, n } = nextCopy(c.id, c.name);
+  const copy = {
+    ...c, id, name,
+    autostart: false,
+    icon_color: nextColor(c.url),
+    icon_label: n ? String(n) : '',
+  };
+  delete copy.icon;
+  openEditor(copy, baseIcon, 'duplicate');
 }
 
 async function fetchDetails() {
@@ -216,13 +455,29 @@ async function fetchDetails() {
   try {
     const info = await api.inspect(url);
     $('#f-url').value = info.url;
-    if (!editing || !$('#f-name').value) $('#f-name').value = info.name;
-    if (!$('#f-id').dataset.touched) $('#f-id').value = info.id;
+    let name = info.name, id = info.id;
+    // Adding a site you already have? Default to a distinct copy.
+    if (!editing && (idTaken(id) || nameTaken(name))) {
+      const c = nextCopy(id, name);
+      id = c.id; name = c.name;
+      if (!$('#f-color').value && sameSite(info.url).length) $('#f-color').value = nextColor(info.url);
+      if (!$('#f-label').value && c.n) $('#f-label').value = String(c.n);
+    }
+    if (!editing || !$('#f-name').value) $('#f-name').value = name;
+    if (!$('#f-id').dataset.touched) $('#f-id').value = id;
     const existing = new Set(originsFromText());
     info.allowed_origins.forEach((o) => existing.add(o));
     $('#f-origins').value = [...existing].join('\n');
     showNotes(info.notes);
-    if (!(info.icon && await drawIcon(info.icon))) letterIcon(info.name, new URL(info.url).hostname);
+    const ranked = rank(await Promise.all((info.icons || []).map(analyze)));
+    if (ranked.length && await drawIcon(ranked[0].src)) {
+      setIconAuto(true);
+      autoRemoveWhitePlate();
+    } else {
+      letterIcon(name, new URL(info.url).hostname);
+      setIconAuto(true);
+    }
+    showChoices(ranked);
   } catch (e) {
     setError(String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''));
   } finally {
@@ -243,7 +498,7 @@ async function save(ev) {
   if (!origins.length) origins.push(new URL(url).origin);
 
   // Keep options the form doesn't know about (badge_regex, user_agent…).
-  const cfg = { ...(editing || {}), id, name, url, allowed_origins: origins };
+  const cfg = { ...(template || {}), id, name, url, allowed_origins: origins };
   const opt = (key, on) => { if (on) cfg[key] = true; else delete cfg[key]; };
   cfg.autostart = $('#f-autostart').checked;
   cfg.start_hidden = $('#f-hidden').checked;
@@ -251,11 +506,15 @@ async function save(ev) {
   opt('raise_on_notification', $('#f-raise').checked);
   opt('reload_on_resume', $('#f-resume').checked);
   opt('ignore_certificate_errors', $('#f-cert').checked);
+  opt('icon_auto', iconAuto);
+  const style = styleFields();
+  if (style.icon_color) cfg.icon_color = style.icon_color; else delete cfg.icon_color;
+  if (style.icon_label) cfg.icon_label = style.icon_label; else delete cfg.icon_label;
   const perms = $('#f-perms').value.split(',').map((s) => s.trim()).filter(Boolean);
   if (perms.length) cfg.extra_permissions = perms; else delete cfg.extra_permissions;
   if (hidDevices.length) cfg.hid_devices = hidDevices; else delete cfg.hid_devices;
 
-  if (!iconDirty && !cfg.icon) letterIcon(name, new URL(url).hostname);
+  if (!iconDirty && !cfg.icon) { letterIcon(name, new URL(url).hostname); opt('icon_auto', true); }
   const icon = iconDirty ? canvas.toDataURL('image/png') : null;
 
   const btn = $('#btn-save');
@@ -264,7 +523,7 @@ async function save(ev) {
     await api.save(cfg, icon, editing?.id ?? null);
     if ($('#f-menu').checked) await api.install(id);
     dlg.close();
-    toast(`${name} saved`);
+    toast(template && !editing ? `${name} created — open it and sign in with the other account` : `${name} saved`);
     await refresh();
   } catch (e) {
     setError(String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''));
@@ -284,7 +543,10 @@ $('#f-id').addEventListener('input', () => { $('#f-id').dataset.touched = '1'; }
 $('#f-name').addEventListener('input', () => {
   if (!$('#f-id').dataset.touched) $('#f-id').value = $('#f-name').value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
 });
-$('#btn-icon').addEventListener('click', () => guard(async () => { const d = await api.pickIcon(); if (d) await drawIcon(d); }));
+$('#btn-icon').addEventListener('click', () => guard(async () => { const d = await api.pickIcon(); if (d && await drawIcon(d)) setIconAuto(false); }));
+$('#btn-bg').addEventListener('click', toggleBackground);
+$('#f-color').addEventListener('change', updatePreview);
+$('#f-label').addEventListener('input', updatePreview);
 $('#btn-hid').addEventListener('click', () => guard(detectHid));
 $('#form').addEventListener('submit', save);
 $('#btn-config').addEventListener('click', () => api.openConfig());
@@ -345,6 +607,9 @@ $('#f-autoupdate').addEventListener('change', (e) => guard(() => api.setAutoUpda
   $('#version').textContent = `PWA Pop ${info.version}`;
   $('#config-path').textContent = info.configFile;
   $('#btn-manager-entry').classList.toggle('hidden', !info.appImage);
+  iconColors = await api.iconColors();
+  const sel = $('#f-color');
+  for (const c of iconColors) sel.append(el('option', { value: c }, c.charAt(0).toUpperCase() + c.slice(1)));
   await refresh();
   $('#f-autoupdate').checked = await api.getAutoUpdate();
   if ($('#f-autoupdate').checked) checkUpdate(false).catch(() => {});

@@ -7,6 +7,8 @@ export interface AppState {
   maximized?: boolean;
   muted?: boolean;
   zoom?: number;
+  /** The site's own icon has been adopted (icon_auto). */
+  iconAdopted?: boolean;
 }
 
 export class StateStore {

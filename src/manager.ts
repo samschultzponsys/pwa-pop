@@ -7,6 +7,9 @@ import { installApp, installManagerEntry, isInstalled, setAutostart, uninstallAp
 import { CONFIG_FILE, ensureDir, ICON_DIR, PROFILE_DIR, assetPath, IN_FLATPAK, releaseVersion, spawnSelf } from './paths';
 import { cleanUserAgent } from './runtime';
 import { inspectSite } from './inspect';
+import { StateStore } from './state';
+import { IconStyle, styleIcon } from './icons';
+import { COLOR_ORDER } from './iconstyle';
 import { autoCheckEnabled, checkForUpdates, installUpdate, setAutoCheck } from './updater';
 
 /**
@@ -33,17 +36,30 @@ function isRunning(id: string): Promise<boolean> {
   });
 }
 
-function iconDataUrl(file: string | null): string | null {
+function loadImage(file: string | null): Electron.NativeImage | null {
   if (!file) return null;
   try {
     const img = nativeImage.createFromPath(file);
-    if (!img.isEmpty()) return img.resize({ width: 128, height: 128, quality: 'best' }).toDataURL();
-    const ext = path.extname(file).slice(1).toLowerCase();
-    const mime = ext === 'svg' ? 'image/svg+xml' : `image/${ext}`;
-    return `data:${mime};base64,${fs.readFileSync(file).toString('base64')}`;
+    return img.isEmpty() ? null : img;
   } catch {
     return null;
   }
+}
+
+/** Icon as a data URL for the UI, optionally with a duplicate's colour/label. */
+function iconDataUrl(file: string | null, style?: IconStyle): string | null {
+  const img = loadImage(file);
+  if (!img) {
+    if (!file) return null;
+    try {
+      const ext = path.extname(file).slice(1).toLowerCase();
+      const mime = ext === 'svg' ? 'image/svg+xml' : `image/${ext}`;
+      return `data:${mime};base64,${fs.readFileSync(file).toString('base64')}`;
+    } catch {
+      return null;
+    }
+  }
+  return (style ? styleIcon(img, style) : img).resize({ width: 128, height: 128, quality: 'best' }).toDataURL();
 }
 
 async function launch(id: string): Promise<void> {
@@ -58,7 +74,10 @@ function registerIpc(win: BrowserWindow) {
 
   h('apps:list', () => Promise.all(loadApps().map(async (a) => {
     const r = resolveApp(a);
-    return { config: a, icon: iconDataUrl(r.iconPath), installed: isInstalled(a.id), running: await isRunning(a.id) };
+    return {
+      config: a, icon: iconDataUrl(r.iconPath, a), baseIcon: iconDataUrl(r.iconPath),
+      installed: isInstalled(a.id), running: await isRunning(a.id),
+    };
   })));
 
   h('apps:inspect', (url: string) => inspectSite(url));
@@ -71,6 +90,8 @@ function registerIpc(win: BrowserWindow) {
       const file = path.join(ICON_DIR, `${cfg.id}.png`);
       fs.writeFileSync(file, nativeImage.createFromDataURL(iconPng).toPNG());
       cfg.icon = file;
+      // A fresh automatic icon may be upgraded again once the user signs in.
+      if (cfg.icon_auto) new StateStore(cfg.id).update({ iconAdopted: false }, true);
     }
     if (previousId && previousId !== cfg.id) {
       const wasInstalled = isInstalled(previousId);
@@ -120,6 +141,12 @@ function registerIpc(win: BrowserWindow) {
   });
 
   h('app:hidLast', () => lastHidList);
+  h('icon:style', (dataUrl: string, style: IconStyle) => {
+    const img = nativeImage.createFromDataURL(dataUrl);
+    if (img.isEmpty()) return dataUrl;
+    return styleIcon(img, style).resize({ width: 128, height: 128, quality: 'best' }).toDataURL();
+  });
+  h('icon:colors', () => COLOR_ORDER);
   h('app:openConfig', () => shell.openPath(CONFIG_FILE));
   h('app:installManager', () => installManagerEntry());
   h('app:info', () => ({

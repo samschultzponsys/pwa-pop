@@ -6,7 +6,7 @@
 Run Outlook, Claude, the Yeastar Linkus softphone or any other site as a real desktop app,
 with its own window, tray icon, login, notifications, unread badge, autostart and headset buttons.</p>
 
-<p align="center">Current version: <b>1.4</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
+<p align="center">Current version: <b>1.5</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
 
 ---
 
@@ -159,6 +159,9 @@ you and keeps your comments. A full, commented example is in
 | `ignore_certificate_errors` | `false` | Accept self-signed certificates on allowed origins only. |
 | `user_agent` | Chrome UA | Override the user agent. |
 | `width`, `height` | 1200×800 | Initial size. |
+| `icon_color` | – | Recolour the icon: `blue`, `green`, `purple`, `orange`, `teal`, `pink`, `red`, `yellow`. Used for duplicates. |
+| `icon_label` | – | 1–2 characters in a coloured chip on the icon's top-left corner (e.g. `2` or `W`). |
+| `icon_auto` | – | Set by the manager when it picked the icon: PWA Pop swaps in the site's own icon after you sign in. |
 
 Other files under `~/.config/webtray/`: `icons/` (app icons), `state/<id>.json`
 (window geometry, mute) and `profiles/<id>/` (cookies, logins, storage; delete it
@@ -170,6 +173,15 @@ to log out completely).
 2. Put the site and its sign-in origins in `allowed_origins`. Run the app from a
    terminal: any redirect that leaves the list is logged, so you can see what to add.
 3. Run `webtray --install <id>`. The app is now in the menu (and in autostart if `autostart: true`).
+
+### Several accounts on the same site
+
+Every app has its own profile (`~/.config/webtray/profiles/<id>/`), so two
+entries for the same site are fully separate: different logins, cookies and
+settings. In the manager, click **Duplicate** on an app. The copy gets a unique
+ID and name (`claude-2`, "Claude (2)"), a different icon colour and a numbered
+label so the tray icons are easy to tell apart. Open it and sign in with the
+other account. Rename it to something like "Claude (Work)" whenever you like.
 
 ### Headsets
 

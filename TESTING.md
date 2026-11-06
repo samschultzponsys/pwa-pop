@@ -74,7 +74,14 @@ see show/hide events, denied permissions and redirects that leave
 - [ ] Linkus *Edit* → *Headset / HID devices* → *Detect connected devices*: the WH64 is listed; *Any from vendor* adds `vendorId 0x6993`.
 - [ ] Changes are written to `~/.config/webtray/apps.yaml`, and its comments are kept.
 
-## 9. Packaging
+## 9. Duplicates, icons and service-worker notifications
+- [ ] Manager → **Duplicate** on Claude: the form shows `claude-2`, "Claude (2)", a colour and label "2". Save, open it, and sign in with a second account. The first Claude stays signed in to the first account.
+- [ ] Both Claude tray icons are visibly different (colour + "2" chip). The menu entries show the same icons.
+- [ ] Add `https://outlook.cloud.microsoft` fresh: the icon has no white square behind it ("Restore background" is offered). After signing in, the icon is Outlook's own.
+- [ ] Outlook hidden in the tray → send yourself an email: a KDE popup appears (not just the sound). Clicking it opens Outlook on that email.
+- [ ] Unread badge at tray size is readable (digit or "9+") and doesn't hide the icon.
+
+## 10. Packaging
 - [ ] `rpm -ql pwa-pop | grep -E '^/opt/webtray/webtray$|^/usr/lib/udev'` and `/usr/bin/webtray` exist.
 - [ ] `sudo dnf remove pwa-pop` removes `/usr/bin/webtray` and the udev rule. `~/.config/webtray` is untouched.
 - [ ] The AppImage runs (`chmod +x` it, then `./pwa-pop-<ver>-x86_64.AppImage`) and `--install` writes `Exec=` pointing at the AppImage.

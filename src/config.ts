@@ -33,6 +33,12 @@ export interface AppConfig {
   reload_on_resume?: boolean;
   width?: number;
   height?: number;
+  /** Recolour the icon (duplicate apps): blue, green, purple, orange, teal, pink, red, yellow. */
+  icon_color?: string;
+  /** 1–2 characters shown in a coloured chip on the icon's top-left corner. */
+  icon_label?: string;
+  /** The icon was picked automatically: replace it with the site's own icon once signed in. */
+  icon_auto?: boolean;
 }
 
 /** AppConfig with defaults filled in. */

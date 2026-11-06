@@ -1,4 +1,4 @@
-import { ipcMain, nativeImage, NativeImage, Notification, Session, WebContents } from 'electron';
+import { ipcMain, nativeImage, NativeImage, Notification, ServiceWorkerMain, Session, WebContents } from 'electron';
 import { imageFromBuffer } from './icons';
 
 export interface NotifyOptions {
@@ -23,7 +23,16 @@ export interface NotificationHost {
   activate(): void;
 }
 
-interface Live { n: Notification; wc: WebContents; key: string; tag: string }
+/** Where a notification came from: a page (WebContents) or a service worker. */
+interface Source {
+  key: string;
+  url(): string;
+  send(id: number, type: string): void;
+}
+
+interface Live { n: Notification; src: Source | null; key: string; tag: string; id: number }
+
+const debug = (msg: string) => { if (process.env.WEBTRAY_DEBUG) console.log(`[webtray] ${msg}`); };
 
 /**
  * Turns page notifications (via the preload shim) into native freedesktop
@@ -34,15 +43,43 @@ export class NotificationBridge {
   private live = new Map<string, Live>();
   private iconCache = new Map<string, NativeImage>();
 
+  private pages = new WeakMap<WebContents, Source>();
+  private workers = new Set<number>();
+
   constructor(private host: NotificationHost) {
-    ipcMain.on('wt:notify', (e, opts: NotifyOptions) => { void this.show(e.sender, opts); });
-    ipcMain.on('wt:notify-close', (e, id: number) => {
-      for (const l of this.live.values()) if (l.wc === e.sender && l.key.endsWith(`:${id}`)) l.n.close();
-    });
+    ipcMain.on('wt:notify', (e, opts: NotifyOptions) => { void this.show(this.pageSource(e.sender), opts); });
+    ipcMain.on('wt:notify-close', (e, id: number) => this.closeFrom(this.pageSource(e.sender), id));
   }
 
-  private send(wc: WebContents, id: number, type: string) {
-    if (!wc.isDestroyed()) wc.send('wt:notify-event', id, type);
+  private pageSource(wc: WebContents): Source {
+    let src = this.pages.get(wc);
+    if (!src) {
+      src = {
+        key: `wc${wc.id}`,
+        url: () => (wc.isDestroyed() ? '' : wc.getURL()),
+        send: (id, type) => { if (!wc.isDestroyed()) wc.send('wt:notify-event', id, type); },
+      };
+      this.pages.set(wc, src);
+    }
+    return src;
+  }
+
+  /** Accept notifications from a running service worker (see preload/sw-preload.ts). */
+  attachServiceWorker(sw: ServiceWorkerMain) {
+    if (this.workers.has(sw.versionId)) return;
+    this.workers.add(sw.versionId);
+    const src: Source = {
+      key: `sw${sw.versionId}`,
+      url: () => sw.scope,
+      send: (id, type) => { try { if (!sw.isDestroyed()) sw.send('wt:notify-event', id, type); } catch { /* worker stopped */ } },
+    };
+    sw.ipc.on('wt:notify', (_e, opts: NotifyOptions) => { void this.show(src, opts); });
+    sw.ipc.on('wt:notify-close', (_e, id: number) => this.closeFrom(src, id));
+    // Version ids are never reused, so a stopped worker's entry is harmless.
+  }
+
+  private closeFrom(src: Source, id: number) {
+    for (const l of this.live.values()) if (l.src === src && l.id === id) l.n.close();
   }
 
   private async icon(url: string): Promise<NativeImage> {
@@ -71,21 +108,27 @@ export class NotificationBridge {
     return img;
   }
 
-  private async show(wc: WebContents, o: NotifyOptions) {
-    if (!this.host.isAllowed(wc.getURL())) { this.send(wc, o.id, 'error'); return; }
-    const key = `${wc.id}:${o.instance}:${o.id}`;
+  private async show(src: Source, o: NotifyOptions) {
+    debug(`notification from ${src.key} (${src.url()}): ${o.title}`);
+    if (!this.host.isAllowed(src.url())) {
+      console.warn(`[webtray] notification from ${src.url()} blocked: origin not in allowed_origins`);
+      src.send(o.id, 'error');
+      return;
+    }
+    const key = `${src.key}:${o.instance}:${o.id}`;
 
     // Same tag replaces the previous notification, like Chrome does.
     if (o.tag) {
       for (const [k, l] of this.live) {
-        if (l.wc === wc && l.tag === o.tag) { this.live.delete(k); l.n.close(); }
+        if (l.src === src && l.tag === o.tag) { this.live.delete(k); l.n.close(); }
       }
     }
 
     if (this.host.isMuted()) {
       // Pretend it was shown so the page doesn't retry or error out.
-      this.send(wc, o.id, 'show');
-      setTimeout(() => this.send(wc, o.id, 'close'), 5000);
+      debug('notifications are muted');
+      src.send(o.id, 'show');
+      setTimeout(() => src.send(o.id, 'close'), 5000);
       return;
     }
 
@@ -100,20 +143,21 @@ export class NotificationBridge {
       urgency: urgent ? 'critical' : 'normal',
       timeoutType: urgent ? 'never' : 'default',
     });
-    const entry: Live = { n, wc, key, tag: o.tag };
+    const entry: Live = { n, src, key, tag: o.tag, id: o.id };
     this.live.set(key, entry);
-    n.on('show', () => this.send(wc, o.id, 'show'));
+    n.on('show', () => src.send(o.id, 'show'));
     n.on('click', () => {
       this.host.activate();
-      this.send(wc, o.id, 'click');
+      src.send(o.id, 'click');
     });
     n.on('close', () => {
       this.live.delete(key);
-      this.send(wc, o.id, 'close');
+      src.send(o.id, 'close');
     });
-    n.on('failed', () => {
+    n.on('failed', (_e: unknown, err: string) => {
+      console.warn(`[webtray] notification failed: ${err}`);
       this.live.delete(key);
-      this.send(wc, o.id, 'error');
+      src.send(o.id, 'error');
     });
     n.show();
   }
@@ -123,7 +167,7 @@ export class NotificationBridge {
     if (this.host.isMuted()) return;
     const n = new Notification({ title, body, icon: this.host.appIcon() });
     const key = `self:${Date.now()}:${Math.random()}`;
-    this.live.set(key, { n, wc: null as any, key, tag: '' });
+    this.live.set(key, { n, src: null, key, tag: '', id: 0 });
     n.on('click', () => (onClick ?? (() => this.host.activate()))());
     n.on('close', () => this.live.delete(key));
     n.show();
