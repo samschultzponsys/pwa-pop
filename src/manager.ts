@@ -105,6 +105,15 @@ function registerIpc(win: BrowserWindow) {
     } else {
       upsertApp(cfg);
     }
+    // Only one primary phone app: take phone links away from every other app.
+    if (cfg.handle_schemes?.length) {
+      for (const other of loadApps()) {
+        if (other.id === cfg.id || !other.handle_schemes?.length) continue;
+        const { handle_schemes: _drop, ...rest } = other;
+        upsertApp(rest as AppConfig);
+        if (isInstalled(other.id).menu) installApp(rest as AppConfig);
+      }
+    }
     if (isInstalled(cfg.id).menu) installApp(cfg);
     else setAutostart(cfg, !!cfg.autostart);
     return true;

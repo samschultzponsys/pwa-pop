@@ -9,6 +9,19 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [2.0] - 2026-11-06
+
+### Added
+- **Primary phone app.** The click-to-call setting is now "Primary phone
+  app", and only one app can have it. Ticking it on one app removes it from
+  any other app and moves the system's default for phone links. The phone app
+  gets a "phone app" badge in the manager.
+
+### Fixed
+- The manager's edit form could silently refuse to save when a value in
+  apps.yaml was outside a field's range (e.g. a memory limit under 200 MB).
+  It now shows an error message instead.
+
 ## [1.9] - 2026-11-06
 
 ### Added

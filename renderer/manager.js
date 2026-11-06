@@ -76,6 +76,7 @@ function card({ config: c, icon, baseIcon, installed, running, memoryMb }) {
       installed.menu ? el('span', { class: 'badge on' }, 'in menu') : null,
       installed.autostart ? el('span', { class: 'badge on' }, 'autostart') : null,
       (c.hid_devices || []).length ? el('span', { class: 'badge on' }, 'headset') : null,
+      (c.handle_schemes || []).length ? el('span', { class: 'badge on', title: 'Opens tel:, callto: and sip: links' }, 'phone app') : null,
     ),
     el('div', { class: 'toggles' }, toggle('Autostart', 'autostart'), toggle('Start hidden', 'start_hidden')),
     el('div', { class: 'buttons' },
@@ -423,6 +424,8 @@ async function openEditor(cfg, iconUrl, mode = cfg ? 'edit' : 'add') {
   $('#f-cert').checked = !!cfg?.ignore_certificate_errors;
   $('#f-memlimit').value = cfg?.memory_limit_mb || '';
   $('#f-calls').checked = !!(cfg?.handle_schemes || []).length;
+  const phoneApp = apps.find((a) => (a.config.handle_schemes || []).length && a.config.id !== cfg?.id);
+  $('#f-calls').parentElement.title = phoneApp ? `Ticking this takes over from ${phoneApp.config.name}` : '';
   $('#f-menu').checked = true;
   $('#f-origins').value = (cfg?.allowed_origins || []).join('\n');
   $('#f-perms').value = (cfg?.extra_permissions || []).join(', ');
@@ -518,8 +521,10 @@ async function save(ev) {
   opt('ignore_certificate_errors', $('#f-cert').checked);
   opt('icon_auto', iconAuto);
   if ($('#f-calls').checked) cfg.handle_schemes = ['tel', 'callto', 'sip']; else delete cfg.handle_schemes;
-  const mem = parseInt($('#f-memlimit').value, 10);
-  if (mem >= 200) cfg.memory_limit_mb = mem; else delete cfg.memory_limit_mb;
+  const memText = $('#f-memlimit').value.trim();
+  const mem = parseInt(memText, 10);
+  if (memText && !(mem >= 200)) { setError('The memory limit must be at least 200 MB (leave it empty for no limit).'); $('#f-memlimit').focus(); return; }
+  if (memText) cfg.memory_limit_mb = mem; else delete cfg.memory_limit_mb;
   const style = styleFields();
   if (style.icon_color) cfg.icon_color = style.icon_color; else delete cfg.icon_color;
   if (style.icon_label) cfg.icon_label = style.icon_label; else delete cfg.icon_label;
