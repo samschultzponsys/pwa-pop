@@ -147,6 +147,17 @@ export function installManagerEntry(): string {
 export function migrateDesktopEntries(apps: AppConfig[]): void {
   if (!IN_FLATPAK) return;
   for (const app of apps) {
+    // Entries written by a build without `--branch` in Exec: rewrite them.
+    for (const f of [desktopFile(app.id), autostartFile(app.id)]) {
+      try {
+        if (!fs.existsSync(f)) continue;
+        const want = execLine(['--app', app.id]);
+        const has = /^Exec=(.*)$/m.exec(fs.readFileSync(f, 'utf8'))?.[1] ?? '';
+        if (!has.startsWith(want)) {
+          if (f === desktopFile(app.id)) installApp(app); else setAutostart(app, true);
+        }
+      } catch { /* best effort */ }
+    }
     const oldMenu = path.join(APPLICATIONS_DIR, `${legacyDesktopId(app.id)}.desktop`);
     const oldAuto = path.join(AUTOSTART_DIR, `${legacyDesktopId(app.id)}.desktop`);
     const hadMenu = fs.existsSync(oldMenu), hadAuto = fs.existsSync(oldAuto);

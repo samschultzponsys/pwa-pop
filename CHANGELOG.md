@@ -9,6 +9,16 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [2.1] - 2026-11-06
+
+### Fixed
+- Flatpak: with both the old `master` branch (1.0–1.1 bundles) and the new
+  `stable` branch installed, menu and autostart entries could start the old
+  version, so fixes like the per-app taskbar icon never showed up. Entries
+  now run `flatpak run --branch=<the branch that wrote them>`, and existing
+  entries are rewritten on start. To remove a leftover old copy:
+  `flatpak uninstall --user io.github.samschultzponsys.PwaPop//master`.
+
 ## [2.0] - 2026-11-06
 
 ### Added

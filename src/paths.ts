@@ -43,12 +43,28 @@ export function assetPath(...parts: string[]): string {
   return path.join(app.getAppPath(), ...parts);
 }
 
+/** Branch of the running Flatpak ("stable"), from the sandbox's /.flatpak-info. */
+export function flatpakBranch(): string | null {
+  try {
+    const info = process.env.WEBTRAY_FLATPAK_INFO || '/.flatpak-info'; // override for tests
+    const m = /^branch=(.+)$/m.exec(fs.readFileSync(info, 'utf8'));
+    return m && /^[\w.-]+$/.test(m[1].trim()) ? m[1].trim() : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * The command a .desktop file / child process should use to start webtray.
  * Handles AppImage, Flatpak, packaged (rpm/deb/tar) and `electron .` dev runs.
  */
 export function launcherCommand(): string[] {
-  if (IN_FLATPAK) return ['flatpak', 'run', process.env.FLATPAK_ID as string];
+  if (IN_FLATPAK) {
+    // Name our own branch: with several installed (old "master" bundles and
+    // "stable"), a plain `flatpak run` starts whichever is "current".
+    const branch = flatpakBranch();
+    return ['flatpak', 'run', ...(branch ? [`--branch=${branch}`] : []), process.env.FLATPAK_ID as string];
+  }
   if (process.env.APPIMAGE) return [process.env.APPIMAGE];
   if (app.isPackaged) {
     // Prefer the /usr/bin symlink when it points at us (rpm/deb installs).

@@ -15,7 +15,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { execFile, spawn } from 'child_process';
 import { app, net } from 'electron';
-import { ensureDir, IN_FLATPAK, releaseVersion, STATE_DIR } from './paths';
+import { ensureDir, flatpakBranch, IN_FLATPAK, releaseVersion, STATE_DIR } from './paths';
 
 export const REPO = 'samschultzponsys/pwa-pop';
 const CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000;
@@ -278,16 +278,6 @@ export interface UpdateGuide {
   /** One line: how this install gets updates. */
   summary: string;
   steps: GuideStep[];
-}
-
-/** Branch of the running Flatpak, from the sandbox's /.flatpak-info. */
-function flatpakBranch(): string | null {
-  try {
-    const m = /^branch=(.+)$/m.exec(fs.readFileSync('/.flatpak-info', 'utf8'));
-    return m ? m[1].trim() : null;
-  } catch {
-    return null;
-  }
 }
 
 let repoOnlineCache: { at: number; online: boolean } | null = null;
