@@ -1,4 +1,5 @@
 import { ipcMain, nativeImage, NativeImage, Notification, ServiceWorkerMain, Session, WebContents, WebFrameMain } from 'electron';
+import { debug } from './log';
 import { imageFromBuffer } from './icons';
 
 export interface NotifyOptions {
@@ -32,7 +33,6 @@ interface Source {
 
 interface Live { n: Notification; src: Source | null; key: string; tag: string; id: number }
 
-const debug = (msg: string) => { if (process.env.WEBTRAY_DEBUG) console.log(`[webtray] ${msg}`); };
 
 /**
  * Turns page notifications (via the preload shim) into native freedesktop

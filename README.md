@@ -6,7 +6,7 @@
 Run Outlook, Claude, the Yeastar Linkus softphone or any other site as a real desktop app,
 with its own window, tray icon, login, notifications, unread badge, autostart and headset buttons.</p>
 
-<p align="center">Current version: <b>3.0</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
+<p align="center">Current version: <b>3.1</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
 
 ---
 
@@ -97,6 +97,14 @@ start page and icon automatically. Chrome-only install links
 (`chrome-extension://…`, `--app-id=…`) aren't needed and won't work. For sites
 behind a login (such as an on-prem PBX), the manifest may be hidden. In that case
 PWA Pop uses the page's favicon after your first sign-in, or you can pick an icon.
+
+### Moving to another computer
+
+In the manager, **Export…** saves every app, with its settings and icon, to one
+`.pwapop` file. On the other computer, install PWA Pop and use **Import…** (also
+offered on the empty start screen). The apps are added to the application menu
+and autostart as before. Logins don't move, because they are encrypted with
+each computer's keyring, so sign in to each app once.
 
 ## Command line
 
@@ -363,6 +371,11 @@ webtray --app linkus
   Run the app from a terminal and look for the `redirect outside allowed_origins` line.
 * **A site says the browser is unsupported:** set `user_agent:` to a current
   Chrome user agent string.
+* **No popup for new mail (Outlook):** tick *Notify when the unread count goes
+  up* for the app. If it still stays quiet, send yourself a test email, then
+  pick **Save diagnostics…** from the app's tray menu. It writes
+  `~/Downloads/pwa-pop-<id>-diagnostics.txt` (settings, where the unread count
+  is read from and a recent log, but no message contents) to attach to an issue.
 * **Start fresh:** quit the app, then `rm -rf ~/.config/webtray/profiles/<id>`.
 
 ## License

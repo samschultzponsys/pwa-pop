@@ -9,6 +9,29 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [3.1] - 2026-11-09
+
+### Added
+- **Export and import.** *Export…* in the manager saves all apps, with their
+  settings and icons, to one `.pwapop` file. *Import…* on another computer adds
+  them, along with their menu and autostart entries. You choose whether apps
+  that already exist are replaced. Logins are not included.
+- **Save diagnostics…** in each app's tray menu writes a text file to
+  Downloads with the app's settings, unread-count sources and a recent log. No
+  terminal or `WEBTRAY_DEBUG` is needed.
+
+### Fixed
+- **New-mail popups in Outlook.** Once a site had called `setAppBadge` (the new
+  Outlook does at start-up), PWA Pop stopped reading the page's unread count.
+  Later updates to the badge only arrive through web push, which Electron
+  doesn't have, so the count froze and new mail never notified. Every source
+  (Inbox folder count, app badge, title, unread rows in the inbox) is now read
+  all the time. The most precise one drives the count and the popup, and the
+  first value from each source is only a baseline.
+- The Inbox count is also read when Outlook's folder list shows it as plain
+  text, or as no number at all when nothing is unread. With the folder pane
+  collapsed, the unread rows at the top of the inbox are used instead.
+
 ## [3.0] - 2026-11-06
 
 Rolls over from 2.9 under the MAJOR.MINOR scheme.

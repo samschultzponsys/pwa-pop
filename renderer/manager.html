@@ -14,6 +14,8 @@
       <p>Web apps that live in your tray</p>
     </div>
     <div class="spacer"></div>
+    <button id="btn-import" class="ghost" title="Add apps from a PWA Pop export file">Import…</button>
+    <button id="btn-export" class="ghost" title="Save all apps and their icons to one file, to set up another computer">Export…</button>
     <button id="btn-config" class="ghost" title="Open apps.yaml in your editor">Edit apps.yaml</button>
     <button id="btn-add" class="primary">+ Add app</button>
   </header>
@@ -34,6 +36,7 @@
       <h2>No apps yet</h2>
       <p>Paste the address of any web app (Outlook, Claude, your PBX…) and PWA Pop turns it into a tray app.</p>
       <button class="primary" data-action="add">Add your first app</button>
+      <p>Moving from another computer? <button class="link" data-action="import">Import an export file</button></p>
     </section>
     <section id="list" class="list"></section>
   </main>

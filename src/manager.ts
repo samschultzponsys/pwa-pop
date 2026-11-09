@@ -11,6 +11,7 @@ import { inspectSite } from './inspect';
 import { StateStore } from './state';
 import { IconStyle, styleIcon } from './icons';
 import { COLOR_ORDER } from './iconstyle';
+import { applyImport, buildExport, parseExport } from './transfer';
 import { autoCheckEnabled, checkForUpdates, downloadUpdate, installUpdate, setAutoCheck, updateGuide } from './updater';
 
 /**
@@ -62,6 +63,17 @@ async function launch(id: string): Promise<void> {
   if (err) throw new Error(`Could not start ${id}: ${err}`);
 }
 
+/** Only one primary phone app: take phone links away from every other app. */
+function makePrimaryPhoneApp(cfg: AppConfig) {
+  if (!cfg.handle_schemes?.length) return;
+  for (const other of loadApps()) {
+    if (other.id === cfg.id || !other.handle_schemes?.length) continue;
+    const { handle_schemes: _drop, ...rest } = other;
+    upsertApp(rest as AppConfig);
+    if (isInstalled(other.id).menu) installApp(rest as AppConfig);
+  }
+}
+
 let lastHidList: { name: string; vendorId: number; productId: number }[] = [];
 
 function registerIpc(win: BrowserWindow) {
@@ -100,15 +112,7 @@ function registerIpc(win: BrowserWindow) {
     } else {
       upsertApp(cfg);
     }
-    // Only one primary phone app: take phone links away from every other app.
-    if (cfg.handle_schemes?.length) {
-      for (const other of loadApps()) {
-        if (other.id === cfg.id || !other.handle_schemes?.length) continue;
-        const { handle_schemes: _drop, ...rest } = other;
-        upsertApp(rest as AppConfig);
-        if (isInstalled(other.id).menu) installApp(rest as AppConfig);
-      }
-    }
+    makePrimaryPhoneApp(cfg);
     if (isInstalled(cfg.id).menu) installApp(cfg);
     else setAutostart(cfg, !!cfg.autostart);
     return true;
@@ -151,6 +155,45 @@ function registerIpc(win: BrowserWindow) {
     const ext = path.extname(f).slice(1).toLowerCase();
     const mime = ext === 'svg' ? 'image/svg+xml' : ext === 'ico' ? 'image/x-icon' : ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
     return `data:${mime};base64,${fs.readFileSync(f).toString('base64')}`;
+  });
+
+  h('apps:export', async () => {
+    const data = buildExport();
+    if (!data.apps.length) throw new Error('There are no apps to export yet.');
+    const stamp = new Date().toISOString().slice(0, 10);
+    const r = await dialog.showSaveDialog(win, {
+      title: 'Export apps',
+      defaultPath: path.join(app.getPath('downloads'), `pwa-pop-apps-${stamp}.pwapop`),
+      filters: [{ name: 'PWA Pop export', extensions: ['pwapop'] }],
+    });
+    if (r.canceled || !r.filePath) return null;
+    fs.writeFileSync(r.filePath, JSON.stringify(data, null, 2));
+    return { file: r.filePath, count: data.apps.length };
+  });
+
+  h('apps:import', async () => {
+    const r = await dialog.showOpenDialog(win, {
+      title: 'Import apps', properties: ['openFile'],
+      filters: [{ name: 'PWA Pop export', extensions: ['pwapop', 'json'] }],
+    });
+    if (r.canceled || !r.filePaths[0]) return null;
+    const data = parseExport(fs.readFileSync(r.filePaths[0], 'utf8'));
+    const have = new Set(loadApps().map((a) => a.id));
+    const clash = data.apps.filter((a) => have.has(a.id));
+    const list = data.apps.map((a) => `• ${a.name}${have.has(a.id) ? '  (already here)' : ''}`).join('\n');
+    const buttons = clash.length ? ['Cancel', 'Add new apps only', 'Add and replace existing'] : ['Cancel', 'Import'];
+    const { response } = await dialog.showMessageBox(win, {
+      type: 'question', buttons, defaultId: buttons.length - 1, cancelId: 0,
+      message: `Import ${data.apps.length} app${data.apps.length === 1 ? '' : 's'}?`,
+      detail: `${list}\n\nSettings and icons are imported and each app is added to the application menu (and autostart where set). You will need to sign in to each app again on this computer.`,
+    });
+    if (response === 0) return null;
+    const { written, skipped } = applyImport(data, clash.length ? response === 2 : true);
+    for (const cfg of written) {
+      try { installApp(cfg); } catch (e) { console.warn(`[webtray] could not install ${cfg.id}: ${e}`); }
+      makePrimaryPhoneApp(cfg);
+    }
+    return { imported: written.length, skipped: skipped.length };
   });
 
   h('app:hidLast', () => lastHidList);

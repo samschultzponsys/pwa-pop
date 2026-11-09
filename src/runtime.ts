@@ -1,7 +1,8 @@
 import * as fs from 'fs';
+import { debug, recentLog } from './log';
 import * as path from 'path';
 import {
-  app, BrowserWindow, clipboard, ipcMain, desktopCapturer, Menu, MenuItemConstructorOptions, NativeImage, powerMonitor,
+  app, BrowserWindow, clipboard, ipcMain, desktopCapturer, Menu, MenuItemConstructorOptions, NativeImage, Notification, powerMonitor,
   screen, session as electronSession, Session, shell, Tray, WebContents,
 } from 'electron';
 import { HidFilter, ResolvedApp, getApp, loadApps, upsertApp } from './config';
@@ -31,7 +32,49 @@ const BASE_PERMISSIONS = [
  * and "Electron/<version>", which makes some sites (Microsoft, Google sign-in,
  * WebRTC softphones) treat us as an unsupported browser.
  */
-const debug = (msg: string) => { if (process.env.WEBTRAY_DEBUG) console.log(`[webtray] ${msg}`); };
+
+type UnreadSource = 'folder' | 'badge' | 'title' | 'rows';
+
+/**
+ * Runs in the page. Returns the Inbox unread count from the folder list
+ * (-1 if there is no Inbox entry), the number of unread rows at the top of the
+ * inbox message list (-1 when not looking at the inbox, or scrolled down), and
+ * a few labels for diagnostics. Message subjects are not included.
+ */
+export const UNREAD_PROBE = `(() => {
+  const probe = { folderLabels: [], rowCount: 0, unreadRows: -1, path: location.pathname };
+  let folder = -1;
+  const isInbox = (t) => /^\\s*inbox\\b/i.test(t);
+  for (const e of document.querySelectorAll('[role=treeitem], [role=tree] [title], nav [aria-label], [data-folder-name]')) {
+    const label = ((e.getAttribute('aria-label') || '') + ' ' + (e.getAttribute('title') || '') + ' ' + (e.getAttribute('data-folder-name') || '')).trim();
+    const lines = (e.innerText || '').split('\\n').map((x) => x.trim()).filter(Boolean);
+    const text = label || lines.join(' ');
+    if (!/inbox/i.test(text) || text.length > 120) continue;
+    if (probe.folderLabels.length < 8) probe.folderLabels.push(label + ' | ' + lines.slice(0, 3).join(' / '));
+    let n = -1;
+    const m = /\\binbox\\b[^\\d]{0,40}?(\\d+)\\s*(?:unread|new)/i.exec(label) || /(\\d+)\\s*(?:unread|new)\\b[^\\d]{0,40}?\\binbox\\b/i.exec(label);
+    if (m) n = Number(m[1]);
+    else if (lines.length && isInbox(lines[0])) {
+      const num = lines.slice(1).find((x) => /^\\d+$/.test(x));
+      n = num ? Number(num) : 0;
+    } else if (isInbox(label) && /^\\s*inbox\\s*$/i.test(label.split(',')[0]) && !/\\d/.test(label)) n = 0;
+    if (n >= 0) folder = Math.max(folder, n);
+  }
+  let rows = -1;
+  const inInbox = /^\\/mail(\\/\\d+)?\\/?(inbox(\\/.*)?)?$/i.test(location.pathname);
+  const list = document.querySelectorAll('[role=listbox] [role=option], [role=grid] [role=row]');
+  probe.rowCount = list.length;
+  if (inInbox && list.length) {
+    let scroller = list[0].parentElement;
+    while (scroller && scroller.scrollHeight <= scroller.clientHeight + 4) scroller = scroller.parentElement;
+    if (!scroller || scroller.scrollTop < 40) {
+      rows = 0;
+      for (const r of list) if (/^\\s*unread\\b/i.test(r.getAttribute('aria-label') || '') || r.getAttribute('aria-label')?.toLowerCase().includes(' unread ')) rows++;
+    }
+  }
+  probe.unreadRows = rows;
+  return { folder, rows, probe };
+})()`;
 
 export function cleanUserAgent(ua: string): string {
   return ua
@@ -257,42 +300,116 @@ export class AppRuntime {
   }
 
   // ------------------------------------------- unread count from the page
-  /**
-   * Last resort for notify_on_unread when the site sets neither an app badge
-   * nor a "(3)" title: read "N unread" from the page's folder list, e.g. the
-   * new Outlook's "Inbox, 3 unread" (aria-label/title of the folder entry).
+  /*
+   * The unread count can come from several places. Each source keeps its own
+   * last value; the first value a source reports is a baseline (never "new
+   * mail"). The count shown and the one that triggers notify_on_unread comes
+   * from the most precise source available:
+   *   folder  "Inbox, 3 unread" in the page's folder list (Outlook)
+   *   badge   navigator.setAppBadge() from the page or its service worker
+   *   title   "(3) Inbox" style page titles, once one has carried a count
+   *   rows    unread rows at the top of the inbox message list (Outlook with
+   *           the folder pane collapsed)
+   *
+   * Earlier versions stopped reading the page as soon as the site had called
+   * setAppBadge once. The new Outlook does that at start-up but later only
+   * updates the badge from web push, which Electron does not have, so the
+   * count froze and new mail never notified.
    */
+  private counts: Partial<Record<UnreadSource, number>> = {};
+  private titleHadCount = false;
   private unreadWatcher: NodeJS.Timeout | null = null;
-  private domCountSeen = false;
-  private domCountMissLogged = false;
+  private domMissLogged = false;
+  private lastProbe: unknown = null;
 
+  private activeSource(): UnreadSource | null {
+    const c = this.counts;
+    if (c.folder !== undefined) return 'folder';
+    if (c.badge !== undefined) return 'badge';
+    if (c.title !== undefined && this.titleHadCount) return 'title';
+    if (c.rows !== undefined) return 'rows';
+    if (c.title !== undefined) return 'title';
+    return null;
+  }
+
+  private reportUnread(src: UnreadSource, n: number) {
+    if (!Number.isFinite(n) || n < 0) return;
+    const prev = this.counts[src];
+    if (prev === n) return;
+    this.counts[src] = n;
+    if (src === 'title' && n > 0) this.titleHadCount = true;
+    if (prev === undefined) debug(`unread source ${src}: ${n} (baseline)`);
+    else debug(`unread source ${src}: ${prev} -> ${n}`);
+
+    const active = this.activeSource();
+    if (src === active && prev !== undefined && n > prev) {
+      const quietStart = Date.now() - this.startedAt < 20_000;
+      const siteNotified = Date.now() - this.notifications.lastSiteNotification < 15_000;
+      if (!this.cfg.notify_on_unread) debug('  not notifying: notify_on_unread is off');
+      else if (quietStart) debug('  not notifying: still starting up');
+      else if (siteNotified) debug('  not notifying: the site showed its own notification');
+      else void this.notifyNewItems(n - prev, n);
+    }
+    this.setUnread(active ? this.counts[active]! : 0);
+  }
+
+  /** Reads the folder list and message list of the page every 10 s. */
   private watchUnreadInPage() {
     if (!this.cfg.notify_on_unread || this.unreadWatcher) return;
-    const script = `(() => {
-      const nums = [];
-      for (const e of document.querySelectorAll('[role=treeitem], [role=navigation] [aria-label], [title], [aria-label]')) {
-        const t = ((e.getAttribute('aria-label') || '') + ' ' + (e.getAttribute('title') || '')).trim();
-        if (!t || t.length > 200) continue;
-        const m = /\\binbox\\b[^\\d]{0,40}?(\\d+)\\s*(?:unread|new)/i.exec(t) || /(\\d+)\\s*(?:unread|new)\\b[^\\d]{0,40}?\\binbox\\b/i.exec(t);
-        if (m) nums.push(Number(m[1]));
-      }
-      return nums.length ? Math.max(...nums) : -1;
-    })()`;
     const tick = async () => {
-      if (this.quitting || this.badgeFromApi || this.win.isDestroyed()) return;
-      if (parseUnread(this.win.webContents.getTitle(), this.cfg.badge_regex) > 0) return;
+      if (this.quitting || this.win.isDestroyed() || !this.cfg.notify_on_unread) return;
       try {
-        const n: number = await this.win.webContents.executeJavaScript(script, true);
-        if (n >= 0) {
-          if (!this.domCountSeen) { this.domCountSeen = true; debug(`unread count source: page folder list (${n})`); }
-          this.setUnread(n);
-        } else if (!this.domCountMissLogged) {
-          this.domCountMissLogged = true;
-          debug('unread count: no "Inbox … N unread" found on the page yet');
+        const r: { folder: number; rows: number; probe: unknown } =
+          await this.win.webContents.executeJavaScript(UNREAD_PROBE, true);
+        this.lastProbe = r.probe;
+        if (r.folder >= 0) this.reportUnread('folder', r.folder);
+        if (r.rows >= 0) this.reportUnread('rows', r.rows);
+        if (r.folder < 0 && r.rows < 0 && !this.domMissLogged) {
+          this.domMissLogged = true;
+          debug('unread: no Inbox folder count or inbox message list found on the page yet');
         }
       } catch { /* page navigating */ }
     };
-    this.unreadWatcher = setInterval(() => { if (this.cfg.notify_on_unread) void tick(); }, 15_000);
+    this.unreadWatcher = setInterval(() => void tick(), 10_000);
+  }
+
+  /** Tray "Save diagnostics…": a text file to send when something is off. */
+  private async saveDiagnostics() {
+    let page: unknown = null;
+    try {
+      page = await this.win.webContents.executeJavaScript(`({
+        url: location.origin + location.pathname,
+        title: document.title,
+        visibility: document.visibilityState,
+        notificationPermission: typeof Notification === 'undefined' ? 'none' : Notification.permission,
+        shimInstalled: !!window.__webtrayShim,
+        probe: (${UNREAD_PROBE}).probe,
+      })`, true);
+    } catch (e) { page = `could not read the page: ${e}`; }
+    const out = [
+      `PWA Pop ${releaseVersion()} diagnostics for "${this.cfg.id}" — ${new Date().toString()}`,
+      `session: ${process.env.XDG_SESSION_TYPE ?? '?'} desktop: ${process.env.XDG_CURRENT_DESKTOP ?? '?'} flatpak: ${IN_FLATPAK}`,
+      `notifications supported: ${Notification.isSupported()} muted: ${!!this.state.data.muted}`,
+      `unread shown: ${this.unread} active source: ${this.activeSource() ?? 'none'} sources: ${JSON.stringify(this.counts)}`,
+      '',
+      'Settings:',
+      JSON.stringify({ ...this.cfg, dial_input: undefined, dial_button: undefined, dial_open: undefined }, null, 2),
+      '',
+      'Page:',
+      JSON.stringify(page, null, 2),
+      '',
+      'Recent log:',
+      ...recentLog(),
+    ].join('\n');
+    const dir = app.getPath('downloads');
+    const file = path.join(dir, `pwa-pop-${this.cfg.id}-diagnostics.txt`);
+    try {
+      ensureDir(dir);
+      fs.writeFileSync(file, out);
+      this.notifications.notify(`${this.cfg.name}: diagnostics saved`, file, () => shell.showItemInFolder(file));
+    } catch (e) {
+      this.notifications.notify(`${this.cfg.name}: could not save diagnostics`, String(e));
+    }
   }
 
   /**
@@ -558,7 +675,7 @@ export class AppRuntime {
     this.attachWebContents(win.webContents, win, false);
     const wc = win.webContents;
     wc.on('page-title-updated', (_e, title) => {
-      if (!this.badgeFromApi) this.setUnread(parseUnread(title, this.cfg.badge_regex));
+      this.reportUnread('title', parseUnread(title, this.cfg.badge_regex));
     });
     wc.on('did-finish-load', () => { if (this.state.data.zoom) wc.setZoomFactor(this.state.data.zoom); });
     wc.on('render-process-gone', (_e, details) => {
@@ -817,6 +934,7 @@ export class AppRuntime {
         label: 'Send test notification',
         click: () => this.notifications.notify(`${this.cfg.name}: test notification`, 'If you can read this, PWA Pop can show popups. Click to open the app.'),
       },
+      { label: 'Save diagnostics…', click: () => void this.saveDiagnostics() },
       {
         label: 'Mute notifications', type: 'checkbox', checked: !!this.state.data.muted,
         click: (item) => { this.state.update({ muted: item.checked }, true); this.refreshMenu(); },
@@ -832,27 +950,18 @@ export class AppRuntime {
     ]));
   }
 
-  private badgeFromApi = false;
   private badgeWorkers = new Set<number>();
 
   /** navigator.setAppBadge() from the page or its service worker. */
   private onAppBadge(count: number) {
-    if (!this.badgeFromApi) debug(`unread count source: app badge (navigator.setAppBadge)`);
-    this.badgeFromApi = true; // the page reports its own count; ignore the title
-    this.setUnread(count);
+    // -1: setAppBadge() without a number ("something new"), no count to use.
+    if (count >= 0) this.reportUnread('badge', count);
   }
 
+  /** Shows a count on the tray icon and taskbar. */
   private setUnread(n: number, force = false) {
     if (n === this.unread && !force) return;
-    const before = this.unread;
     this.unread = n;
-    debug(`unread ${before} -> ${n}${this.cfg.notify_on_unread ? '' : ' (notify_on_unread off)'}`);
-    // Counts seen while the app is starting up are the baseline, not "new" mail.
-    const seeded = Date.now() - this.startedAt > 45_000;
-    // "New mail" fallback for sites that can't notify without Chrome's web push.
-    if (this.cfg.notify_on_unread && seeded && n > before && before >= 0 && Date.now() - this.notifications.lastSiteNotification > 15_000) {
-      void this.notifyNewItems(n - Math.max(0, before), n);
-    }
     this.tray?.setImage(this.trayImage());
     this.tray?.setToolTip(n > 0 ? `${this.cfg.name} — ${n} unread` : this.cfg.name);
     app.setBadgeCount(n);

@@ -139,3 +139,30 @@ test('update one-liners fetch the right package and verify it', () => {
   assert.match(curlCommand('rpm', '2.2', { rpmTool: 'dnf' }), /sudo dnf install \.\/pwa-pop-2\.2-x86_64\.rpm && webtray --restart-all$/);
   assert.match(curlCommand('pacman', '2.2'), /pwa-pop-2\.2-x64\.pacman/);
 });
+
+test('import of an export file writes apps and icons', () => {
+  const { parseExport, applyImport } = require('../dist/transfer');
+  const { ICON_DIR } = require('../dist/paths');
+  fs.writeFileSync(path.join(tmp, 'webtray', 'apps.yaml'), '[]\n'); // earlier tests leave a broken file
+  assert.throws(() => parseExport(JSON.stringify({ format: 'pwa-pop-export', apps: [{ id: 'ok', name: 'x', url: 'file:///etc' }] })), /invalid app/);
+  assert.throws(() => parseExport('{"apps":[]}'), /not a PWA Pop export/);
+  assert.throws(() => parseExport(JSON.stringify({ format: 'pwa-pop-export', apps: [{ id: 'Bad ID', name: 'x', url: 'https://x' }] })), /invalid app/);
+  const file = parseExport(JSON.stringify({
+    format: 'pwa-pop-export', version: 1, apps: [
+      { id: 'imp-mail', name: 'Imported mail', url: 'https://mail.example.com', notify_on_unread: true },
+      { id: 'imp-chat', name: 'Imported chat', url: 'https://chat.example.com' },
+    ],
+    icons: { 'imp-mail': { ext: 'png', data: Buffer.from('fakepng').toString('base64') } },
+  }));
+  const r = applyImport(file, false);
+  assert.deepStrictEqual(r.written.map((a) => a.id), ['imp-mail', 'imp-chat']);
+  const mail = config.loadApps().find((a) => a.id === 'imp-mail');
+  assert.strictEqual(mail.notify_on_unread, true);
+  assert.strictEqual(mail.icon, path.join(ICON_DIR, 'imp-mail.png'));
+  assert.strictEqual(fs.readFileSync(mail.icon, 'utf8'), 'fakepng');
+  // Existing apps are kept unless replacing was chosen.
+  file.apps[1].name = 'Renamed';
+  assert.deepStrictEqual(applyImport(file, false).skipped, ['imp-mail', 'imp-chat']);
+  applyImport(file, true);
+  assert.strictEqual(config.loadApps().find((a) => a.id === 'imp-chat').name, 'Renamed');
+});

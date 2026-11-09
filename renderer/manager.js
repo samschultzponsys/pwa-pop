@@ -578,6 +578,18 @@ $('#f-label').addEventListener('input', updatePreview);
 $('#btn-hid').addEventListener('click', () => guard(detectHid));
 $('#form').addEventListener('submit', save);
 $('#btn-config').addEventListener('click', () => api.openConfig());
+$('#btn-export').addEventListener('click', () => guard(async () => {
+  const r = await api.exportApps();
+  if (r) toast(`Exported ${r.count} app${r.count === 1 ? '' : 's'} to ${r.file}`);
+}));
+const importApps = () => guard(async () => {
+  const r = await api.importApps();
+  if (!r) return;
+  await refresh();
+  toast(`Imported ${r.imported} app${r.imported === 1 ? '' : 's'}${r.skipped ? `, kept ${r.skipped} existing` : ''}. Open each one to sign in.`);
+});
+$('#btn-import').addEventListener('click', importApps);
+document.querySelector('[data-action=import]').addEventListener('click', importApps);
 $('#btn-manager-entry').addEventListener('click', () => guard(async () => { await api.installManager(); toast('PWA Pop added to the application menu'); }));
 window.addEventListener('focus', refresh);
 // Keep "running" / Open / Show / Quit current while the manager is open.
