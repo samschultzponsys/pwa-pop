@@ -10,6 +10,10 @@ name: Build & release
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '.github/workflows/prune-releases.yml'
+      - 'scripts/prune-releases.sh'
   pull_request:
   workflow_dispatch:
     inputs:
@@ -31,8 +35,30 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  # Cheap check first: a push whose version is already released does not
+  # rebuild every package (that only burns Actions minutes and storage).
+  check:
     if: inputs.from_run == ''
+    runs-on: ubuntu-24.04
+    outputs:
+      released: ${{ steps.ver.outputs.released }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: ver
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(node scripts/version.js)
+          if gh release view "v$V" >/dev/null 2>&1; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+            echo "v$V is already released; skipping the package build."
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: check
+    if: inputs.from_run == '' && (needs.check.outputs.released == 'false' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -132,6 +158,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
+          retention-days: 1
 
       - uses: actions/upload-artifact@v4
         with:
@@ -140,6 +167,9 @@ jobs:
             release/pwa-pop-*
             release/SHA256SUMS.txt
           if-no-files-found: error
+          # The release job publishes these within minutes; the GitHub release
+          # is the permanent copy. Short retention keeps Actions storage small.
+          retention-days: 2
 
     outputs:
       version: ${{ steps.ver.outputs.version }}
@@ -153,7 +183,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
-      actions: read
+      actions: write
     env:
       GH_TOKEN: ${{ github.token }}
       V: ${{ inputs.from_run != '' && inputs.version || needs.build.outputs.version }}
@@ -228,6 +258,17 @@ jobs:
             gh release create "v$V" dist/* --verify-tag --title "PWA Pop $V" --notes-file release-notes.md
           fi
           gh release view "v$V"
+
+      # Until a stable base is declared, only the newest release is kept.
+      # Tags stay, so older versions can still be rebuilt. Set to "false"
+      # (or raise KEEP) to keep release history.
+      - name: Prune older releases
+        if: env.PRUNE_OLD_RELEASES == 'true'
+        env:
+          PRUNE_OLD_RELEASES: 'true'
+          KEEP: '1'
+          KEEP_RUNS: '10'
+        run: scripts/prune-releases.sh || echo "::warning::Pruning old releases failed"
 
   # Publishes the Flatpak repository to https://<owner>.github.io/pwa-pop/.
   # One-time setup: repository Settings -> Pages -> Source: "GitHub Actions".

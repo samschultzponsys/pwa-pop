@@ -1,0 +1,28 @@
+name: Prune old releases
+
+# Manual clean-up: deletes old GitHub releases (and their package files) and
+# old workflow runs. Git tags are kept so any version can be rebuilt.
+on:
+  workflow_dispatch:
+    inputs:
+      keep:
+        description: "How many of the newest releases to keep"
+        default: "1"
+      keep_runs:
+        description: "How many recent workflow runs to keep"
+        default: "10"
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  prune:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/prune-releases.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEEP: ${{ inputs.keep }}
+          KEEP_RUNS: ${{ inputs.keep_runs }}
