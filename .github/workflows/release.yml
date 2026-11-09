@@ -1,20 +1,18 @@
 name: Build & release
 
-# Every push to main builds all Linux packages. If the version in
-# package.json (shown as MAJOR.MINOR, e.g. 1.0) has no GitHub release yet,
-# one release "v<version>" is created holding every package.
+# Builds all Linux packages only when the version in package.json (shown as
+# MAJOR.MINOR, e.g. 1.0) has no GitHub release yet, then creates one release
+# "v<version>" holding every package. Other pushes run nothing.
 #
 # Manual run ("Run workflow" in the Actions tab) with `from_run` set
 # republishes packages that an earlier run already built, without rebuilding:
 # e.g. version 1.1, sha da68932…, from_run 42086950592.
 on:
+  # Only a version bump (package.json) can start a build; other pushes don't
+  # run anything. The check job below also skips versions already released.
   push:
     branches: [main]
-    paths-ignore:
-      - '**.md'
-      - '.github/workflows/prune-releases.yml'
-      - 'scripts/prune-releases.sh'
-  pull_request:
+    paths: [package.json]
   workflow_dispatch:
     inputs:
       from_run:
@@ -58,7 +56,7 @@ jobs:
 
   build:
     needs: check
-    if: inputs.from_run == '' && (needs.check.outputs.released == 'false' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: inputs.from_run == '' && needs.check.outputs.released == 'false'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
