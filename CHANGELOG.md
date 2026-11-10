@@ -9,6 +9,17 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [3.8] - 2026-11-10
+
+### Changed
+- **Tidier new-mail popups.** The sender is the title, with the subject and
+  preview on separate lines below. Outlook writes them on one line, so 3.7
+  ran them together with the time ("Sam Schultz Let's hope 4:29 PM To god").
+  The pieces are now read from their own elements, and the time is dropped.
+- Popup titles no longer repeat the app name ("Outlook: …"); the popup header
+  already shows the app's name and icon.
+- Save diagnostics… no longer sends its own test popup.
+
 ## [3.7] - 2026-11-10
 
 ### Fixed

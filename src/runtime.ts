@@ -81,13 +81,25 @@ export const UNREAD_PROBE = `(() => {
 
 /** Runs in the page: sender/subject/preview of the first unread message row. */
 export const TOP_UNREAD = `(() => {
+  const TIME = /^(\\d{1,2}[:.]\\d{2}\\s*(am|pm)?|yesterday|today|(mon|tue|wed|thu|fri|sat|sun)[a-z]*\\.?(\\s+\\d{1,2}[:.]\\d{2}\\s*(am|pm)?)?|\\d{1,2}\\/\\d{1,2}(\\/\\d{2,4})?)$/i;
+  const TIME_IN = /\\s+\\d{1,2}[:.]\\d{2}\\s*(?:am|pm)?\\s+/i;
   const rows = document.querySelectorAll('[role=listbox] [role=option], [role=grid] [role=row], [role=option], [role=listitem], [role=article]');
   for (const r of rows) {
     const label = (r.getAttribute('aria-label') || '').toLowerCase();
     if (!/\\bunread\\b/.test(label)) continue;
-    const text = (r.innerText || '').split('\\n').map((x) => x.trim()).filter(Boolean)
-      // drop times/dates and button text
-      .filter((x) => !/^(\\d{1,2}[:.]\\d{2}\\s*(am|pm)?|yesterday|today|mon|tue|wed|thu|fri|sat|sun|\\d{1,2}\\/\\d{1,2}(\\/\\d{2,4})?)$/i.test(x));
+    // Each piece (sender, subject, time, preview) is its own element even
+    // when the row's text is one line: read the innermost elements in order.
+    const parts = [];
+    for (const e of r.querySelectorAll('*')) {
+      if (e.childElementCount || e.closest('[aria-hidden=true]') || /^(button|svg|path|i)$/i.test(e.tagName)) continue;
+      const t = (e.textContent || '').replace(/\\s+/g, ' ').trim();
+      if (t.length < 2 || TIME.test(t) || parts[parts.length - 1] === t) continue;
+      parts.push(t);
+    }
+    if (parts.length >= 2) return parts.slice(0, 4);
+    // Fallback: the row's text, split around the time.
+    const text = (r.innerText || '').split('\\n').map((x) => x.trim()).filter((x) => x && !TIME.test(x));
+    if (text.length === 1) return text[0].split(TIME_IN).filter(Boolean).slice(0, 4);
     if (text.length) return text.slice(0, 4);
     const al = r.getAttribute('aria-label').replace(/^\\s*unread[,\\s]*/i, '').trim();
     if (al) return [al];
@@ -104,19 +116,15 @@ function gdbus(args: string[]): Promise<string> {
 }
 
 /**
- * For diagnostics: which notification server answers, whether it is in Do
- * Not Disturb ("Inhibited"), and whether a popup sent straight to it (not
- * through Electron) is accepted. The direct one is visible on screen.
+ * For diagnostics: which notification server answers and whether it is in
+ * Do Not Disturb ("Inhibited").
  */
 async function notificationServerReport(): Promise<string[]> {
   const info = await gdbus(['--method', 'org.freedesktop.Notifications.GetServerInformation']);
   const inhibited = await gdbus(['--method', 'org.freedesktop.DBus.Properties.Get', 'org.freedesktop.Notifications', 'Inhibited']);
-  const direct = await gdbus(['--method', 'org.freedesktop.Notifications.Notify',
-    'PWA Pop', '0', '', 'PWA Pop diagnostics', 'Direct test popup (not through Electron)', '[]', '{}', '5000']);
   return [
     `notification server: ${info}`,
     `do not disturb (Inhibited): ${inhibited}`,
-    `direct test popup: ${direct}`,
   ];
 }
 
@@ -480,7 +488,7 @@ export class AppRuntime {
     try {
       ensureDir(dir);
       fs.writeFileSync(file, out);
-      this.notifications.notify(`${this.cfg.name}: diagnostics saved`, file, () => shell.showItemInFolder(file));
+      this.notifications.notify('Diagnostics saved', file, () => shell.showItemInFolder(file));
     } catch (e) {
       this.notifications.notify(`${this.cfg.name}: could not save diagnostics`, String(e));
     }
@@ -517,10 +525,10 @@ export class AppRuntime {
     const totalText = `${total.toLocaleString()} unread`;
     if (lines.length) {
       const [first, ...rest] = lines;
-      const body = rest.join(' — ').slice(0, 220);
-      this.notifications.notify(`${this.cfg.name}: ${first.slice(0, 80)}${many}`, body || totalText);
+      const body = rest.join('\n').slice(0, 300);
+      this.notifications.notify(`${first.slice(0, 80)}${many}`, body || totalText);
     } else {
-      this.notifications.notify(`${this.cfg.name}: ${added === 1 ? 'new message' : `${added} new messages`}`, totalText);
+      this.notifications.notify(added === 1 ? 'New message' : `${added} new messages`, totalText);
     }
   }
 
@@ -1087,7 +1095,7 @@ export class AppRuntime {
       { label: 'Reload', click: () => this.reload() },
       {
         label: 'Send test notification',
-        click: () => this.notifications.notify(`${this.cfg.name}: test notification`, 'If you can read this, PWA Pop can show popups. Click to open the app.'),
+        click: () => this.notifications.notify('Test notification', 'If you can read this, PWA Pop can show popups. Click to open the app.'),
       },
       { label: 'Save diagnostics…', click: () => void this.saveDiagnostics() },
       {
