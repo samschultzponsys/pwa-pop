@@ -52,8 +52,10 @@ export const UNREAD_PROBE = `(() => {
     if (!/inbox/i.test(text) || text.length > 120) continue;
     if (probe.folderLabels.length < 8) probe.folderLabels.push(label + ' | ' + lines.slice(0, 3).join(' / '));
     let n = -1;
-    const m = /\\binbox\\b[^\\d]{0,40}?(\\d+)\\s*(?:unread|new)/i.exec(label) || /(\\d+)\\s*(?:unread|new)\\b[^\\d]{0,40}?\\binbox\\b/i.exec(label);
-    if (m) n = Number(m[1]);
+    // Numbers may have separators: "Inbox - 105,093 items (4,270 unread)".
+    const m = /\\binbox\\b.{0,60}?(\\d[\\d,.\\u00a0\\u202f\\u2009]*)\\s*(?:unread|new)/i.exec(label)
+      || /(\\d[\\d,.\\u00a0\\u202f\\u2009]*)\\s*(?:unread|new)\\b[^\\d]{0,40}?\\binbox\\b/i.exec(label);
+    if (m) n = Number(m[1].replace(/\\D/g, ''));
     else if (lines.length && isInbox(lines[0])) {
       const num = lines.slice(1).find((x) => /^\\d+$/.test(x));
       n = num ? Number(num) : 0;
@@ -317,6 +319,7 @@ export class AppRuntime {
    * count froze and new mail never notified.
    */
   private counts: Partial<Record<UnreadSource, number>> = {};
+  private lastUnreadNotify = 0;
   private titleHadCount = false;
   private unreadWatcher: NodeJS.Timeout | null = null;
   private domMissLogged = false;
@@ -342,13 +345,24 @@ export class AppRuntime {
     else debug(`unread source ${src}: ${prev} -> ${n}`);
 
     const active = this.activeSource();
-    if (src === active && prev !== undefined && n > prev) {
+    // Any source going up means new mail: Outlook's folder count can lag or
+    // stall while its app badge (new mail since last look) still moves, and
+    // the other way round. Several sources rising together give one popup.
+    // Unread rows change when you switch Focused/Other or scroll, so they
+    // only count while nothing better is available.
+    if (prev !== undefined && n > prev && (src !== 'rows' || active === 'rows')) {
       const quietStart = Date.now() - this.startedAt < 20_000;
       const siteNotified = Date.now() - this.notifications.lastSiteNotification < 15_000;
+      const recent = Date.now() - this.lastUnreadNotify < 30_000;
       if (!this.cfg.notify_on_unread) debug('  not notifying: notify_on_unread is off');
       else if (quietStart) debug('  not notifying: still starting up');
       else if (siteNotified) debug('  not notifying: the site showed its own notification');
-      else void this.notifyNewItems(n - prev, n);
+      else if (recent) debug('  not notifying: already notified for this mail');
+      else {
+        this.lastUnreadNotify = Date.now();
+        const total = active ? this.counts[active]! : n;
+        void this.notifyNewItems(n - prev, total);
+      }
     }
     this.setUnread(active ? this.counts[active]! : 0);
   }
@@ -371,6 +385,12 @@ export class AppRuntime {
       } catch { /* page navigating */ }
     };
     this.unreadWatcher = setInterval(() => void tick(), 10_000);
+    // Every few minutes, note the counts in the log so diagnostics show
+    // whether the page kept updating while hidden in the tray.
+    setInterval(() => {
+      if (!this.cfg.notify_on_unread || this.win.isDestroyed()) return;
+      debug(`unread check: ${JSON.stringify(this.counts)} window ${this.win.isVisible() ? 'shown' : 'in tray'}`);
+    }, 5 * 60_000);
   }
 
   /** Tray "Save diagnostics…": a text file to send when something is off. */
@@ -611,6 +631,7 @@ export class AppRuntime {
       nodeIntegrationInSubFrames: true,
       spellcheck: true,
       autoplayPolicy: 'no-user-gesture-required',
+      additionalArguments: this.cfg.notify_on_unread ? ['--wt-keep-visible'] : [],
     };
   }
 
@@ -989,8 +1010,8 @@ export class AppRuntime {
 
   /** navigator.setAppBadge() from the page or its service worker. */
   private onAppBadge(count: number) {
-    // -1: setAppBadge() without a number ("something new"), no count to use.
-    if (count >= 0) this.reportUnread('badge', count);
+    // -1: setAppBadge() without a number, a "something new" flag: count it as 1.
+    this.reportUnread('badge', count < 0 ? 1 : count);
   }
 
   /** Shows a count on the tray icon and taskbar. */

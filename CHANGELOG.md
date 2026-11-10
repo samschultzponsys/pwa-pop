@@ -9,6 +9,24 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [3.3] - 2026-11-10
+
+### Fixed
+- **Outlook new-mail popups**, based on a diagnostics file from 3.2:
+  - Unread counts with thousands separators were misread: "4,270 unread"
+    became 270.
+  - Every source of the count can now trigger the popup, not only the one
+    shown on the icon. Outlook's app badge counts new mail and moves even
+    when the folder count doesn't. Sources rising together give one popup.
+  - Apps with *Notify when the unread count goes up* now always look visible
+    to the page, as a desktop mail client would. Outlook keeps updating its
+    mail list and counts while hidden in the tray, instead of pausing.
+    Minimize to the tray still sees the real window state.
+  - `setAppBadge()` without a number (a "something new" flag) counts as new
+    mail.
+- Diagnostics now note the unread counts every 5 minutes, so they show
+  whether the page kept updating while in the tray.
+
 ## [3.2] - 2026-11-10
 
 ### Changed

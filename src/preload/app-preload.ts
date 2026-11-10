@@ -12,9 +12,16 @@ import { contextBridge, ipcRenderer } from 'electron';
 // Tell the main process when the page stops/starts being visible. On KDE
 // Wayland the compositor handles the minimize button itself, so this is how
 // "minimize to tray" notices a minimize.
-document.addEventListener('visibilitychange', () => {
+// Registered before the page's own listeners (capture on window), so it still
+// sees every change when the page is told it stays visible (below).
+window.addEventListener('visibilitychange', () => {
   ipcRenderer.send('wt:visibility', document.visibilityState);
-});
+}, true);
+
+// --wt-keep-visible (apps with notify_on_unread): the page always believes it
+// is visible, like a desktop mail client, so it keeps refreshing its mail
+// list and unread counts while hidden in the tray.
+const keepVisible = (process.argv || []).includes('--wt-keep-visible');
 
 type Listener = (id: number, type: string) => void;
 const listeners: Listener[] = [];
@@ -29,8 +36,16 @@ contextBridge.exposeInMainWorld('__webtray', {
   badge: (count: number | null) => ipcRenderer.send('wt:badge', count),
 });
 
-function installShim(): void {
+function installShim(keepVisible: boolean): void {
   const w = window as any;
+  if (keepVisible && !w.__webtrayVisible) {
+    w.__webtrayVisible = true;
+    try {
+      Object.defineProperty(Document.prototype, 'visibilityState', { get: () => 'visible', configurable: true });
+      Object.defineProperty(Document.prototype, 'hidden', { get: () => false, configurable: true });
+      w.addEventListener('visibilitychange', (e: Event) => e.stopImmediatePropagation(), true);
+    } catch { /* ignore */ }
+  }
   const bridge = w.__webtray;
   const Real: any = w.Notification;
   if (!bridge || !Real || w.__webtrayShim) return;
@@ -146,7 +161,7 @@ function installShim(): void {
 
 // Run the shim in the page's own JavaScript world, before page scripts.
 try {
-  (contextBridge as any).executeInMainWorld({ func: installShim });
+  (contextBridge as any).executeInMainWorld({ func: installShim, args: [keepVisible] });
 } catch (e) {
   console.warn('[webtray] notification shim unavailable', e);
 }

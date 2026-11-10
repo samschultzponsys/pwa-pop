@@ -6,7 +6,7 @@
 Run Outlook, Claude, the Yeastar Linkus softphone or any other site as a real desktop app,
 with its own window, tray icon, login, notifications, unread badge, autostart and headset buttons.</p>
 
-<p align="center">Current version: <b>3.2</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
+<p align="center">Current version: <b>3.3</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
 
 ---
 
@@ -371,9 +371,14 @@ webtray --app linkus
   Run the app from a terminal and look for the `redirect outside allowed_origins` line.
 * **A site says the browser is unsupported:** set `user_agent:` to a current
   Chrome user agent string.
-* **No popup for new mail (Outlook):** tick *Notify when the unread count goes
-  up* for the app. If it still stays quiet, send yourself a test email, then
-  pick **Save diagnostics…** from the app's tray menu. It writes
+* **No popup for new mail (Outlook):** in the manager, edit the app and tick
+  *Notify when the unread count goes up* (`notify_on_unread: true`). Leave
+  *Use urgent notifications* off for popups that go away by themselves, and
+  check that PWA Pop is allowed to show popups in your desktop's notification
+  settings (KDE: System Settings → Notifications → Applications) and that Do
+  Not Disturb is off. The tray menu's *Send test notification* checks the
+  popup side. If new mail still stays quiet, send yourself a test email, wait
+  a minute, then pick **Save diagnostics…** from the app's tray menu. It writes
   `~/Downloads/pwa-pop-<id>-diagnostics.txt` (settings, where the unread count
   is read from and a recent log, but no message contents) to attach to an issue.
 * **Start fresh:** quit the app, then `rm -rf ~/.config/webtray/profiles/<id>`.
