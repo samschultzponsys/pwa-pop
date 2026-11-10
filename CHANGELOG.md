@@ -9,6 +9,17 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [3.6] - 2026-11-10
+
+### Added
+- **Stay signed in across restarts, updates and reboots** (on by default,
+  per-app checkbox). Single sign-on logins such as ConnectWise's OIDC are
+  often only kept in session cookies, which are thrown away whenever the app
+  closes, so every update signed you out. PWA Pop now keeps them for 14 days,
+  like Chrome's "continue where you left off". They are saved every few
+  minutes and before a restart. Untick it, or set
+  `forget_session_cookies: true`, for the old behaviour.
+
 ## [3.5] - 2026-11-10
 
 ### Added

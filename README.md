@@ -6,7 +6,7 @@
 Run Outlook, Claude, the Yeastar Linkus softphone or any other site as a real desktop app,
 with its own window, tray icon, login, notifications, unread badge, autostart and headset buttons.</p>
 
-<p align="center">Current version: <b>3.5</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
+<p align="center">Current version: <b>3.6</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
 
 ---
 
@@ -171,6 +171,7 @@ you and keeps your comments. A full, commented example is in
 | `handle_schemes` | – | Link types this app opens and dials, e.g. `[tel, callto, sip]` (click-to-call). The app becomes their default. |
 | `dial_input`, `dial_button`, `dial_open` | – | CSS selectors for click-to-call, set from the app's right-click menu ("Use for click-to-call"). |
 | `pass_shortcuts` | `false` | Send every key combination to the page (remote desktop tools like MeshCentral, web terminals) instead of PWA Pop's Ctrl+W/R, F5, F12, Alt+←/→ and zoom shortcuts. |
+| `forget_session_cookies` | `false` | Sign-ins normally survive restarts, updates and reboots: the site's session cookies are kept (with a 14-day expiry), like Chrome's "continue where you left off". Set to `true` to drop them whenever the app closes. |
 | `notify_on_unread` | `false` | Show a notification whenever the unread count goes up. For sites that only notify through Chrome's web push, like the new Outlook. |
 | `minimize_to_tray` | `false` | The minimize button hides the app to its tray icon instead of the taskbar. |
 | `memory_limit_mb` | – | Reload, then restart, the app when it uses more than this many MB. Never during calls or while you're using it. |

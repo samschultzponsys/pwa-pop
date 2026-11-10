@@ -422,6 +422,7 @@ async function openEditor(cfg, iconUrl, mode = cfg ? 'edit' : 'add') {
   $('#f-urgent').checked = !!cfg?.urgent_notifications;
   $('#f-raise').checked = !!cfg?.raise_on_notification;
   $('#f-unread').checked = !!cfg?.notify_on_unread;
+  $('#f-keepsignin').checked = !cfg?.forget_session_cookies;
   $('#f-resume').checked = !!cfg?.reload_on_resume;
   $('#f-keys').checked = !!cfg?.pass_shortcuts;
   $('#f-mintray').checked = !!cfg?.minimize_to_tray;
@@ -524,6 +525,7 @@ async function save(ev) {
   opt('urgent_notifications', $('#f-urgent').checked);
   opt('raise_on_notification', $('#f-raise').checked);
   opt('notify_on_unread', $('#f-unread').checked);
+  opt('forget_session_cookies', !$('#f-keepsignin').checked);
   opt('reload_on_resume', $('#f-resume').checked);
   opt('pass_shortcuts', $('#f-keys').checked);
   opt('minimize_to_tray', $('#f-mintray').checked);

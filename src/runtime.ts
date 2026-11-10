@@ -173,6 +173,7 @@ export class AppRuntime {
     this.setupLifecycle();
     this.scheduleUpdateChecks();
     this.watchMemory();
+    this.watchSessionCookies();
     this.watchForNewVersion();
     this.watchUnreadInPage();
     ipcMain.on('wt:badge', (_e, count: number) => this.onAppBadge(Number(count)));
@@ -551,8 +552,48 @@ export class AppRuntime {
     setTimeout(tick, 5_000);
   }
 
+  // ------------------------------------------------ stay signed in
+  /**
+   * Session cookies (no expiry) are dropped whenever the app exits, which
+   * signs you out of SSO/OIDC sites such as ConnectWise after every update or
+   * reboot. Re-save them with an expiry so they survive, like Chrome's
+   * session restore. Runs every few minutes (a reboot gives no warning) and
+   * before restarts.
+   */
+  private async keepSessionCookies(): Promise<void> {
+    if (this.cfg.forget_session_cookies) return;
+    try {
+      const all = await this.ses.cookies.get({});
+      const expirationDate = Date.now() / 1000 + 14 * 24 * 3600;
+      let n = 0;
+      for (const c of all) {
+        if (!c.session) continue;
+        const host = (c.domain ?? '').replace(/^\./, '');
+        const url = `${c.secure ? 'https' : 'http'}://${host}${c.path ?? '/'}`;
+        try {
+          await this.ses.cookies.set({
+            url, name: c.name, value: c.value, path: c.path, secure: c.secure, httpOnly: c.httpOnly,
+            sameSite: c.sameSite, expirationDate,
+            ...(c.hostOnly ? {} : { domain: c.domain }),
+          });
+          n++;
+        } catch { /* e.g. __Host- cookies with a domain: skip */ }
+      }
+      await this.ses.cookies.flushStore();
+      if (n) debug(`kept ${n} session cookie(s) for the next start`);
+    } catch (e) {
+      debug(`keeping session cookies failed: ${e}`);
+    }
+  }
+
+  private watchSessionCookies() {
+    setInterval(() => void this.keepSessionCookies(), 3 * 60_000);
+    setTimeout(() => void this.keepSessionCookies(), 60_000);
+  }
+
   /** Relaunch this app process, keeping it hidden if it is hidden now. */
-  restart() {
+  async restart() {
+    await this.keepSessionCookies();
     const args = ['--app', this.cfg.id];
     if (!this.win.isVisible()) args.push('--hidden');
     this.quitting = true;
@@ -1097,10 +1138,13 @@ export class AppRuntime {
     });
   }
 
-  quit() {
+  async quit() {
+    if (this.quitting) { app.quit(); return; }
     this.quitting = true;
     this.state.flush();
     this.tray?.destroy();
+    // Don't let a slow cookie store hold up the exit.
+    await Promise.race([this.keepSessionCookies(), new Promise((r) => setTimeout(r, 2000))]);
     app.quit();
   }
 

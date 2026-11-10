@@ -62,6 +62,13 @@ export interface AppConfig {
    * MeshCentral, web terminals).
    */
   pass_shortcuts?: boolean;
+  /**
+   * Don't keep sign-ins across restarts. By default PWA Pop saves the site's
+   * session cookies (single sign-on / OIDC logins are often only kept in
+   * those) so a restart, update or reboot doesn't sign you out, like Chrome's
+   * "continue where you left off".
+   */
+  forget_session_cookies?: boolean;
   /** The minimize button hides the app to its tray icon instead of the taskbar. */
   minimize_to_tray?: boolean;
   /** CSS selectors for click-to-call, taught via the right-click menu. */
