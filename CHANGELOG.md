@@ -9,6 +9,16 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [3.5] - 2026-11-10
+
+### Added
+- **Save diagnostics…** now checks the desktop's notification service. It
+  records which server answers and whether Do Not Disturb is on, and sends
+  one popup straight to the service, bypassing Electron. That tells "PWA Pop
+  isn't sending" apart from "the desktop isn't showing" (KDE turns on Do Not
+  Disturb by itself while a full-screen app is focused or screens are
+  mirrored).
+
 ## [3.4] - 2026-11-10
 
 ### Fixed

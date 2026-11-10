@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import { debug, recentLog } from './log';
 import * as path from 'path';
+import { execFile } from 'child_process';
 import {
   app, BrowserWindow, clipboard, ipcMain, desktopCapturer, Menu, MenuItemConstructorOptions, NativeImage, Notification, powerMonitor,
   screen, session as electronSession, Session, shell, Tray, WebContents,
@@ -93,6 +94,31 @@ export const TOP_UNREAD = `(() => {
   }
   return [];
 })()`;
+
+function gdbus(args: string[]): Promise<string> {
+  return new Promise((resolve) => {
+    execFile('gdbus', ['call', '--session', '--dest', 'org.freedesktop.Notifications',
+      '--object-path', '/org/freedesktop/Notifications', ...args], { timeout: 4000 },
+    (err, stdout, stderr) => resolve(err ? `error: ${(stderr || err.message).trim()}` : stdout.trim()));
+  });
+}
+
+/**
+ * For diagnostics: which notification server answers, whether it is in Do
+ * Not Disturb ("Inhibited"), and whether a popup sent straight to it (not
+ * through Electron) is accepted. The direct one is visible on screen.
+ */
+async function notificationServerReport(): Promise<string[]> {
+  const info = await gdbus(['--method', 'org.freedesktop.Notifications.GetServerInformation']);
+  const inhibited = await gdbus(['--method', 'org.freedesktop.DBus.Properties.Get', 'org.freedesktop.Notifications', 'Inhibited']);
+  const direct = await gdbus(['--method', 'org.freedesktop.Notifications.Notify',
+    'PWA Pop', '0', '', 'PWA Pop diagnostics', 'Direct test popup (not through Electron)', '[]', '{}', '5000']);
+  return [
+    `notification server: ${info}`,
+    `do not disturb (Inhibited): ${inhibited}`,
+    `direct test popup: ${direct}`,
+  ];
+}
 
 export function cleanUserAgent(ua: string): string {
   return ua
@@ -429,10 +455,12 @@ export class AppRuntime {
         probe: (${UNREAD_PROBE}).probe,
       })`, true);
     } catch (e) { page = `could not read the page: ${e}`; }
+    const server = await notificationServerReport();
     const out = [
       `PWA Pop ${releaseVersion()} diagnostics for "${this.cfg.id}" — ${new Date().toString()}`,
       `session: ${process.env.XDG_SESSION_TYPE ?? '?'} desktop: ${process.env.XDG_CURRENT_DESKTOP ?? '?'} flatpak: ${IN_FLATPAK}`,
       `notifications supported: ${Notification.isSupported()} muted: ${!!this.state.data.muted}`,
+      ...server,
       `unread shown: ${this.unread} active source: ${this.activeSource() ?? 'none'} sources: ${JSON.stringify(this.counts)}`,
       '',
       'Settings:',
