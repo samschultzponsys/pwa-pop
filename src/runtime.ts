@@ -698,10 +698,15 @@ export class AppRuntime {
     wc.setWindowOpenHandler(({ url }) => {
       // Sign-in popups (OAuth/OIDC/SAML) open as child windows even on other origins.
       if (url === 'about:blank' || url === '' || this.matcher.matches(url) || looksLikeAuth(url)) {
+        const auth = !this.matcher.matches(url) && looksLikeAuth(url);
+        // Sign-in popups get a small window; the site's own pop-ups (e.g. a
+        // ConnectWise time entry) open at the size you last gave one, not the
+        // narrow size the site asks for.
+        const size = auth ? { width: 560, height: 720 } : this.popupSize();
         return {
           action: 'allow',
           overrideBrowserWindowOptions: {
-            width: 560, height: 720, parent: this.win, autoHideMenuBar: true, icon: this.baseIcon,
+            ...size, parent: this.win, autoHideMenuBar: true, icon: this.baseIcon,
             backgroundColor: '#ffffff', webPreferences: this.webPreferences(),
           },
         };
@@ -710,11 +715,30 @@ export class AppRuntime {
       return { action: 'deny' };
     });
 
-    wc.on('did-create-window', (child) => {
+    wc.on('did-create-window', (child, details) => {
       this.children.add(child);
       child.setMenuBarVisibility(false);
       child.on('closed', () => this.children.delete(child));
       this.attachWebContents(child.webContents, child, true);
+      const auth = !!details.url && !this.matcher.matches(details.url) && looksLikeAuth(details.url);
+      if (!auth) {
+        // window.open() width/height features can still win; apply ours again.
+        const { width, height } = this.popupSize();
+        child.setSize(width, height);
+        if (!win.isDestroyed()) {
+          const p = win.getBounds();
+          child.setPosition(Math.round(p.x + (p.width - width) / 2), Math.round(p.y + Math.max(0, (p.height - height) / 2)));
+        }
+        let t: NodeJS.Timeout | null = null;
+        child.on('resize', () => {
+          if (t) clearTimeout(t);
+          t = setTimeout(() => {
+            if (child.isDestroyed() || child.isMaximized() || child.isFullScreen()) return;
+            const [w, h] = child.getSize();
+            if (w >= 400 && h >= 300) this.state.update({ popupSize: { width: w, height: h } });
+          }, 600);
+        });
+      }
     });
 
     wc.on('will-navigate', (e) => {
@@ -896,6 +920,17 @@ export class AppRuntime {
     }
     this.win.focus();
     this.refreshMenu();
+  }
+
+  /** Size for the site's own pop-up windows: the last one you set, else most of the main window. */
+  private popupSize(): { width: number; height: number } {
+    const saved = this.state.data.popupSize;
+    const area = screen.getDisplayMatching(this.win.getBounds()).workAreaSize;
+    const base = saved ?? {
+      width: Math.max(1000, Math.round(this.win.getBounds().width * 0.85)),
+      height: Math.max(720, Math.round(this.win.getBounds().height * 0.85)),
+    };
+    return { width: Math.min(base.width, area.width), height: Math.min(base.height, area.height) };
   }
 
   hideAll() {

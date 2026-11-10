@@ -9,6 +9,22 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [3.2] - 2026-11-10
+
+### Changed
+- **Pop-up windows open at a usable size.** A site's own pop-ups, such as
+  ConnectWise's *Time Entry*, used to open at the narrow size the site asked
+  for. They now open at most of the app window's size and centred over it.
+  Resize one and the next opens at that size, remembered per app. Sign-in
+  pop-ups keep their small size.
+
+### Fixed
+- Release builds no longer fail (and send failure emails) when GitHub Pages
+  isn't enabled for the repository. The Flatpak repository site is skipped
+  instead.
+- Release builds delete their temporary package copies once the release is
+  published, so they don't fill the account's Actions storage.
+
 ## [3.1] - 2026-11-09
 
 ### Added

@@ -27,6 +27,7 @@ on:
 
 permissions:
   contents: write
+  pages: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -118,6 +119,7 @@ jobs:
           GPG_ARGS: ${{ steps.gpg.outputs.args }}
           PUBKEY: ${{ steps.gpg.outputs.pubkey }}
           REPO_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/repo/
+          GH_TOKEN: ${{ github.token }}
         run: |
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           cd flatpak
@@ -143,7 +145,13 @@ jobs:
             "$REPO_URL" "${{ github.repository }}" "${REPO_URL%repo/}" "$GPGLINE" > $SITE/pwa-pop.flatpakref
           sed "s|@VERSION@|$V|g" site-index.html > $SITE/index.html
           touch $SITE/.nojekyll
-          echo "site=true" >> "$GITHUB_OUTPUT"
+          # Only publish when GitHub Pages is switched on (Settings -> Pages ->
+          # Source: GitHub Actions); otherwise the deploy fails on every release.
+          if gh api "repos/${{ github.repository }}/pages" >/dev/null 2>&1; then
+            echo "site=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::GitHub Pages is not enabled; skipping the Flatpak repository site."
+          fi
 
       - name: Checksums
         run: |
