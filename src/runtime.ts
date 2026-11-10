@@ -78,6 +78,22 @@ export const UNREAD_PROBE = `(() => {
   return { folder, rows, probe };
 })()`;
 
+/** Runs in the page: sender/subject/preview of the first unread message row. */
+export const TOP_UNREAD = `(() => {
+  const rows = document.querySelectorAll('[role=listbox] [role=option], [role=grid] [role=row], [role=option], [role=listitem], [role=article]');
+  for (const r of rows) {
+    const label = (r.getAttribute('aria-label') || '').toLowerCase();
+    if (!/\\bunread\\b/.test(label)) continue;
+    const text = (r.innerText || '').split('\\n').map((x) => x.trim()).filter(Boolean)
+      // drop times/dates and button text
+      .filter((x) => !/^(\\d{1,2}[:.]\\d{2}\\s*(am|pm)?|yesterday|today|mon|tue|wed|thu|fri|sat|sun|\\d{1,2}\\/\\d{1,2}(\\/\\d{2,4})?)$/i.test(x));
+    if (text.length) return text.slice(0, 4);
+    const al = r.getAttribute('aria-label').replace(/^\\s*unread[,\\s]*/i, '').trim();
+    if (al) return [al];
+  }
+  return [];
+})()`;
+
 export function cleanUserAgent(ua: string): string {
   return ua
     .replace(/\(KHTML, like Gecko\)\s+(?:\S+\/\S+\s+)*?(Chrome\/)/, '(KHTML, like Gecko) $1')
@@ -320,6 +336,9 @@ export class AppRuntime {
    */
   private counts: Partial<Record<UnreadSource, number>> = {};
   private lastUnreadNotify = 0;
+  /** Newest unread message seen in the list, so a popup never shows an older one. */
+  private lastTopUnread = '';
+  private notifyingUnread = false;
   private titleHadCount = false;
   private unreadWatcher: NodeJS.Timeout | null = null;
   private domMissLogged = false;
@@ -376,6 +395,10 @@ export class AppRuntime {
         const r: { folder: number; rows: number; probe: unknown } =
           await this.win.webContents.executeJavaScript(UNREAD_PROBE, true);
         this.lastProbe = r.probe;
+        if (!this.notifyingUnread) {
+          const top = await this.topUnread();
+          if (top.length) this.lastTopUnread = top.join('|');
+        }
         if (r.folder >= 0) this.reportUnread('folder', r.folder);
         if (r.rows >= 0) this.reportUnread('rows', r.rows);
         if (r.folder < 0 && r.rows < 0 && !this.domMissLogged) {
@@ -437,31 +460,36 @@ export class AppRuntime {
    * subject, preview) when the page lists it, as in Outlook's message list;
    * otherwise just the count.
    */
+  private async topUnread(): Promise<string[]> {
+    try { return await this.win.webContents.executeJavaScript(TOP_UNREAD, true); } catch { return []; }
+  }
+
   private async notifyNewItems(added: number, total: number) {
+    // The count often moves a few seconds before the new message is drawn in
+    // the list, and with many unread mails the first unread row may still be
+    // an older one. Wait for a newer top unread row, up to ~10 s.
+    this.notifyingUnread = true;
+    const before = this.lastTopUnread;
     let lines: string[] = [];
     try {
-      lines = await this.win.webContents.executeJavaScript(`(() => {
-        const rows = document.querySelectorAll('[role=option], [role=row], [role=listitem], [role=article]');
-        for (const r of rows) {
-          const label = (r.getAttribute('aria-label') || '').toLowerCase();
-          if (!/\\bunread\\b/.test(label)) continue;
-          const text = (r.innerText || '').split('\\n').map((x) => x.trim()).filter(Boolean)
-            // drop times/dates and button text
-            .filter((x) => !/^(\\d{1,2}[:.]\\d{2}\\s*(am|pm)?|yesterday|today|mon|tue|wed|thu|fri|sat|sun|\\d{1,2}\\/\\d{1,2}(\\/\\d{2,4})?)$/i.test(x));
-          if (text.length) return text.slice(0, 4);
-          const al = r.getAttribute('aria-label').replace(/^\\s*unread[,\\s]*/i, '').trim();
-          if (al) return [al];
-        }
-        return [];
-      })()`, true);
-    } catch { /* page busy */ }
+      for (const wait of [0, 2000, 3000, 5000]) {
+        if (wait) await new Promise((r) => setTimeout(r, wait));
+        const top = await this.topUnread();
+        if (top.length && top.join('|') !== before) { lines = top; break; }
+      }
+    } finally {
+      this.notifyingUnread = false;
+    }
+    if (lines.length) this.lastTopUnread = lines.join('|');
+    else debug('  new message not found in the list; showing the count only');
     const many = added > 1 ? ` (+${added - 1} more)` : '';
+    const totalText = `${total.toLocaleString()} unread`;
     if (lines.length) {
       const [first, ...rest] = lines;
       const body = rest.join(' — ').slice(0, 220);
-      this.notifications.notify(`${this.cfg.name}: ${first.slice(0, 80)}${many}`, body || `${total} unread`);
+      this.notifications.notify(`${this.cfg.name}: ${first.slice(0, 80)}${many}`, body || totalText);
     } else {
-      this.notifications.notify(`${this.cfg.name}: ${added === 1 ? '1 new item' : `${added} new items`}`, `${total} unread`);
+      this.notifications.notify(`${this.cfg.name}: ${added === 1 ? 'new message' : `${added} new messages`}`, totalText);
     }
   }
 

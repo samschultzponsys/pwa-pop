@@ -9,6 +9,16 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [3.4] - 2026-11-10
+
+### Fixed
+- **New-mail popups show the sender and subject.** In 3.3 the popup said
+  "1 new item": Outlook's badge moves a few seconds before the new message
+  appears in the list. PWA Pop now waits up to about 10 seconds for a newer
+  unread message at the top of the list. It never reuses one it has already
+  seen, so with thousands of unread mails it won't show an older message.
+  If none appears, the popup says "New message" with the unread total.
+
 ## [3.3] - 2026-11-10
 
 ### Fixed
