@@ -9,6 +9,20 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [3.9] - 2026-11-10
+
+### Fixed
+- **Minimize to the tray on KDE Wayland.** Diagnostics showed KWin handles
+  the minimize button itself and tells the app nothing except that it lost
+  focus, so minimizing went to the taskbar (after the first time, at best).
+  Apps with *Minimize to the tray* now run under XWayland, where every
+  minimize is reported. Ticking or unticking the option restarts the app to
+  switch. `WEBTRAY_NATIVE_WAYLAND=1` keeps the app on native Wayland.
+
+### Changed
+- The Flatpak now has full X11 (XWayland) access (`--socket=x11`) instead
+  of X11 only as a fallback, which the fix above needs.
+
 ## [3.8] - 2026-11-10
 
 ### Changed

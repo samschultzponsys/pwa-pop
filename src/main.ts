@@ -178,6 +178,12 @@ function main() {
     // Ties windows, taskbar badges and icons to webtray-<id>.desktop.
     process.env.CHROME_DESKTOP = `${desktopId(cfg.id)}.desktop`;
     app.commandLine.appendSwitch('class', desktopId(cfg.id));
+    // Wayland compositors handle the minimize button themselves and don't
+    // tell the app, so "minimize to the tray" can't work there. Under
+    // XWayland every minimize is reported. WEBTRAY_NATIVE_WAYLAND=1 opts out.
+    if (cfg.minimize_to_tray && process.env.WAYLAND_DISPLAY && process.env.DISPLAY && !process.env.WEBTRAY_NATIVE_WAYLAND) {
+      app.commandLine.appendSwitch('ozone-platform', 'x11');
+    }
     if (!app.requestSingleInstanceLock({ id: cfg.id })) { app.exit(0); return; }
     try { migrateDesktopEntries([cfg]); } catch { /* best effort */ }
     // We got the lock, so this app wasn't running: nothing to quit.

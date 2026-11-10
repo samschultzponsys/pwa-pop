@@ -18,7 +18,9 @@ finish-args:
   - --share=ipc
   - --share=network
   - --socket=wayland
-  - --socket=fallback-x11
+  # Full X11 (XWayland) access, not just a fallback: apps with "minimize to
+  # the tray" run under XWayland, where minimizing is reported to the app.
+  - --socket=x11
   - --socket=pulseaudio
   - --device=dri
   # Headsets (WebHID over /dev/hidraw*) and webcams. The host still needs the

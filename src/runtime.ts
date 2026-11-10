@@ -199,7 +199,7 @@ export class AppRuntime {
       }
     });
     this.watchConfig();
-    debug(`PWA Pop ${releaseVersion()} running ${this.cfg.id}: notify_on_unread=${!!this.cfg.notify_on_unread} minimize_to_tray=${!!this.cfg.minimize_to_tray} urgent=${!!this.cfg.urgent_notifications} session=${process.env.XDG_SESSION_TYPE ?? '?'}`);
+    debug(`PWA Pop ${releaseVersion()} running ${this.cfg.id} on ${app.commandLine.getSwitchValue('ozone-platform') || 'auto'} display: notify_on_unread=${!!this.cfg.notify_on_unread} minimize_to_tray=${!!this.cfg.minimize_to_tray} urgent=${!!this.cfg.urgent_notifications} session=${process.env.XDG_SESSION_TYPE ?? '?'}`);
     this.ses.serviceWorkers.on('running-status-changed', ({ versionId, runningStatus }) => {
       if (runningStatus !== 'running') return;
       const sw = this.ses.serviceWorkers.getWorkerFromVersionID(versionId);
@@ -338,6 +338,12 @@ export class AppRuntime {
         this.cfg = { ...fresh, iconPath: fresh.iconPath ?? before.iconPath };
         this.matcher = new OriginMatcher(fresh.allowed_origins);
         if (fresh.notify_on_unread && !before.notify_on_unread) this.watchUnreadInPage();
+        // Minimize to the tray switches between Wayland and XWayland (see
+        // main.ts), which only takes effect on a restart.
+        if (!!fresh.minimize_to_tray !== !!before.minimize_to_tray && process.env.WAYLAND_DISPLAY && !process.env.WEBTRAY_NATIVE_WAYLAND) {
+          debug('minimize_to_tray changed: restarting to switch display mode');
+          setTimeout(() => void this.restart(), 1500);
+        }
         if (fresh.icon_color !== before.icon_color || fresh.icon_label !== before.icon_label || fresh.icon !== before.icon) {
           void loadIconFile(this.cfg.iconPath).then((img) => {
             this.baseIcon = styleIcon(img, this.cfg);
