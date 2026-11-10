@@ -1,6 +1,7 @@
 import { ipcMain, nativeImage, NativeImage, Notification, ServiceWorkerMain, Session, WebContents, WebFrameMain } from 'electron';
 import { debug } from './log';
 import { imageFromBuffer } from './icons';
+import { PopupHandle, Popups } from './popups';
 
 export interface NotifyOptions {
   id: number;
@@ -22,6 +23,9 @@ export interface NotificationHost {
   isAllowed(url: string): boolean;
   /** Show and focus the app window. */
   activate(): void;
+  /** App name and desktop entry id the popups are labelled with. */
+  appName: string;
+  desktopEntry: string;
 }
 
 /** Where a notification came from: a page (WebContents) or a service worker. */
@@ -31,7 +35,7 @@ interface Source {
   send(id: number, type: string): void;
 }
 
-interface Live { n: Notification; src: Source | null; key: string; tag: string; id: number }
+interface Live { n: PopupHandle; src: Source | null; key: string; tag: string; id: number }
 
 
 /**
@@ -47,7 +51,10 @@ export class NotificationBridge {
   private frames = new Map<string, Source>();
   private workers = new Set<number>();
 
+  readonly popups: Popups;
+
   constructor(private host: NotificationHost) {
+    this.popups = new Popups(host.appName, host.desktopEntry);
     ipcMain.on('wt:notify', (e, opts: NotifyOptions) => { void this.show(this.pageSource(e.sender, e.senderFrame), opts); });
     ipcMain.on('wt:notify-close', (e, id: number) => this.closeFrom(this.pageSource(e.sender, e.senderFrame), id));
   }
@@ -156,45 +163,35 @@ export class NotificationBridge {
     if (this.host.raiseOnNotification) this.host.activate();
 
     const urgent = this.host.urgent || o.requireInteraction;
-    const n = new Notification({
-      title: o.title || ' ',
-      body: o.body,
-      icon: await this.icon(o.icon),
-      silent: o.silent,
-      urgency: urgent ? 'critical' : 'normal',
-      timeoutType: urgent ? 'never' : 'default',
-    });
-    const entry: Live = { n, src, key, tag: o.tag, id: o.id };
+    const entry: Live = { n: { close: () => {} }, src, key, tag: o.tag, id: o.id };
     this.live.set(key, entry);
-    n.on('show', () => src.send(o.id, 'show'));
-    n.on('click', () => {
-      this.host.activate();
-      src.send(o.id, 'click');
+    entry.n = this.popups.show({
+      title: o.title || ' ', body: o.body, icon: await this.icon(o.icon), silent: o.silent, urgent,
+    }, {
+      onShow: () => src.send(o.id, 'show'),
+      onClick: () => { this.host.activate(); src.send(o.id, 'click'); },
+      onClose: () => { this.live.delete(key); src.send(o.id, 'close'); },
+      onFail: (err) => {
+        console.warn(`[webtray] notification failed: ${err}`);
+        this.live.delete(key);
+        src.send(o.id, 'error');
+      },
     });
-    n.on('close', () => {
-      this.live.delete(key);
-      src.send(o.id, 'close');
-    });
-    n.on('failed', (_e: unknown, err: string) => {
-      console.warn(`[webtray] notification failed: ${err}`);
-      this.live.delete(key);
-      src.send(o.id, 'error');
-    });
-    n.show();
   }
 
   /** Native notification raised by webtray itself (downloads etc.). */
   notify(title: string, body: string, onClick?: () => void) {
     if (this.host.isMuted()) { debug(`notification skipped (muted): ${title}`); return; }
     if (!Notification.isSupported()) { console.warn('[webtray] native notifications are not supported here'); return; }
-    debug(`showing notification: ${title} | ${body}`);
-    const n = new Notification({ title, body, icon: this.host.appIcon() });
+    debug(`showing notification (${this.popups.method()}): ${title} | ${body}`);
     const key = `self:${Date.now()}:${Math.random()}`;
-    this.live.set(key, { n, src: null, key, tag: '', id: 0 });
-    n.on('show', () => debug(`notification shown: ${title}`));
-    n.on('failed', (_e: unknown, err: string) => { console.warn(`[webtray] notification failed: ${err}`); this.live.delete(key); });
-    n.on('click', () => (onClick ?? (() => this.host.activate()))());
-    n.on('close', () => this.live.delete(key));
-    n.show();
+    const entry: Live = { n: { close: () => {} }, src: null, key, tag: '', id: 0 };
+    this.live.set(key, entry);
+    entry.n = this.popups.show({ title, body, icon: this.host.appIcon(), urgent: false, silent: false }, {
+      onShow: () => debug(`notification shown: ${title}`),
+      onFail: (err) => { console.warn(`[webtray] notification failed: ${err}`); this.live.delete(key); },
+      onClick: () => (onClick ?? (() => this.host.activate()))(),
+      onClose: () => this.live.delete(key),
+    });
   }
 }

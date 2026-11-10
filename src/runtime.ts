@@ -10,7 +10,7 @@ import { HidFilter, ResolvedApp, getApp, loadApps, upsertApp } from './config';
 import { dialScript, findCallLink, numberFromLink, selectorScript } from './calls';
 import { badgeIcon, parseUnread } from './badge';
 import { defaultIcon, imageFromBuffer, imageHasTransparency, loadIconFile, styleIcon } from './icons';
-import { isInstalled, stableIcon } from './desktop';
+import { desktopId, isInstalled, stableIcon } from './desktop';
 import { NotificationBridge } from './notifications';
 import { isSafeExternal, looksLikeAuth, OriginMatcher } from './origins';
 import { assetPath, CONFIG_FILE, ensureDir, ICON_DIR, IN_FLATPAK, readVersionMarker, releaseVersion, spawnSelf } from './paths';
@@ -159,6 +159,8 @@ export class AppRuntime {
       raiseOnNotification: !!cfg.raise_on_notification,
       isAllowed: (u) => this.matcher.matches(u),
       activate: () => this.showAll(),
+      appName: cfg.name,
+      desktopEntry: desktopId(cfg.id),
     });
   }
 
@@ -460,7 +462,7 @@ export class AppRuntime {
     const out = [
       `PWA Pop ${releaseVersion()} diagnostics for "${this.cfg.id}" — ${new Date().toString()}`,
       `session: ${process.env.XDG_SESSION_TYPE ?? '?'} desktop: ${process.env.XDG_CURRENT_DESKTOP ?? '?'} flatpak: ${IN_FLATPAK}`,
-      `notifications supported: ${Notification.isSupported()} muted: ${!!this.state.data.muted}`,
+      `notifications supported: ${Notification.isSupported()} muted: ${!!this.state.data.muted} sent by: ${this.notifications.popups.method()}`,
       ...server,
       `unread shown: ${this.unread} active source: ${this.activeSource() ?? 'none'} sources: ${JSON.stringify(this.counts)}`,
       '',

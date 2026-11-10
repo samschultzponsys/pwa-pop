@@ -6,7 +6,7 @@
 Run Outlook, Claude, the Yeastar Linkus softphone or any other site as a real desktop app,
 with its own window, tray icon, login, notifications, unread badge, autostart and headset buttons.</p>
 
-<p align="center">Current version: <b>3.6</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
+<p align="center">Current version: <b>3.7</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
 
 ---
 
@@ -372,6 +372,11 @@ webtray --app linkus
   Run the app from a terminal and look for the `redirect outside allowed_origins` line.
 * **A site says the browser is unsupported:** set `user_agent:` to a current
   Chrome user agent string.
+* **Notifications only in the history, no popup (KDE Plasma, Flatpak):**
+  fixed in 3.7. Plasma didn't pop up notifications sent by the app's own
+  processes, so PWA Pop now sends them from a small helper started through the
+  Flatpak portal. Set `WEBTRAY_NOTIFY=electron` to go back to Electron's own
+  notifications.
 * **No popup for new mail (Outlook):** in the manager, edit the app and tick
   *Notify when the unread count goes up* (`notify_on_unread: true`). Leave
   *Use urgent notifications* off for popups that go away by themselves, and

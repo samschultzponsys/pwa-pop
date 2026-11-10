@@ -9,6 +9,19 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [3.7] - 2026-11-10
+
+### Fixed
+- **Popups on KDE Plasma (Flatpak).** Notifications reached Plasma's history
+  but never popped up. Tests showed Plasma accepts the same notification from
+  any process except the app's own and the processes it starts. PWA Pop now
+  sends popups from a small helper (plain Node, no browser engine) that the
+  Flatpak portal starts. Popups keep each app's own name and icon (Outlook,
+  Linkus…), and clicking one still opens the app and reaches the page. If the
+  helper can't run, Electron's notifications are used as before;
+  `WEBTRAY_NOTIFY=electron` forces that.
+- Diagnostics say which way notifications are sent.
+
 ## [3.6] - 2026-11-10
 
 ### Added
