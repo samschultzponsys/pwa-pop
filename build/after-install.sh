@@ -9,6 +9,12 @@ if type update-alternatives >/dev/null 2>&1; then
 else
     ln -sf '/opt/${sanitizedProductName}/${executable}' '/usr/bin/${executable}'
 fi
+# "webtray", the command's name before the rename to WebRoost, keeps working.
+if type update-alternatives >/dev/null 2>&1; then
+    update-alternatives --install '/usr/bin/webtray' 'webtray' '/opt/${sanitizedProductName}/${executable}' 50 || true
+elif [ ! -e /usr/bin/webtray ]; then
+    ln -s '/opt/${sanitizedProductName}/${executable}' /usr/bin/webtray || true
+fi
 
 # Check if user namespaces are supported by the kernel and working with a quick test:
 if ! { [[ -L /proc/self/ns/user ]] && unshare --user true; }; then
@@ -56,10 +62,10 @@ if apparmor_status --enabled > /dev/null 2>&1; then
   fi
 fi
 
-# --- PWA Pop: headset (WebHID) access -------------------------------------
-UDEV_RULE_SOURCE='/opt/${sanitizedProductName}/resources/70-webtray-hid.rules'
+# --- WebRoost: headset (WebHID) access -------------------------------------
+UDEV_RULE_SOURCE='/opt/${sanitizedProductName}/resources/70-webroost-hid.rules'
 if [ -f "$UDEV_RULE_SOURCE" ] && [ -d /usr/lib/udev/rules.d ]; then
-  cp -f "$UDEV_RULE_SOURCE" /usr/lib/udev/rules.d/70-webtray-hid.rules
+  cp -f "$UDEV_RULE_SOURCE" /usr/lib/udev/rules.d/70-webroost-hid.rules
   if hash udevadm 2>/dev/null; then
     udevadm control --reload-rules >/dev/null 2>&1 || true
     udevadm trigger --subsystem-match=hidraw >/dev/null 2>&1 || true

@@ -8,7 +8,7 @@ export interface HidFilter {
   productId?: number;
 }
 
-/** One entry of ~/.config/webtray/apps.yaml, exactly as the user writes it. */
+/** One entry of ~/.config/webroost/apps.yaml, exactly as the user writes it. */
 export interface AppConfig {
   id: string;
   name: string;
@@ -58,12 +58,12 @@ export interface AppConfig {
   handle_schemes?: string[];
   /**
    * Send every keyboard shortcut to the page instead of handling Ctrl+W/R,
-   * F5, F12, Alt+arrows and zoom in PWA Pop (remote desktop tools such as
+   * F5, F12, Alt+arrows and zoom in WebRoost (remote desktop tools such as
    * MeshCentral, web terminals).
    */
   pass_shortcuts?: boolean;
   /**
-   * Don't keep sign-ins across restarts. By default PWA Pop saves the site's
+   * Don't keep sign-ins across restarts. By default WebRoost saves the site's
    * session cookies (single sign-on / OIDC logins are often only kept in
    * those) so a restart, update or reboot doesn't sign you out, like Chrome's
    * "continue where you left off".
@@ -88,12 +88,12 @@ export interface ResolvedApp extends AppConfig {
 
 export const ID_RE = /^[a-z0-9][a-z0-9_-]{0,47}$/;
 
-const DEFAULT_CONFIG = `# PWA Pop / webtray configuration.
+const DEFAULT_CONFIG = `# WebRoost / webroost configuration.
 # Each entry becomes its own tray-resident desktop app: run it with
-#   webtray --app <id>
+#   webroost --app <id>
 # and add it to your menu with
-#   webtray --install <id>
-# See https://github.com/samschultzponsys/pwa-pop for every option.
+#   webroost --install <id>
+# See https://github.com/samschultzponsys/webroost for every option.
 
 - id: claude
   name: Claude
@@ -178,7 +178,7 @@ export function resolveApp(app: AppConfig): ResolvedApp {
 
 export function getApp(id: string): ResolvedApp {
   const app = loadApps().find((a) => a.id === id);
-  if (!app) throw new Error(`No app with id "${id}" in ${CONFIG_FILE}. Run "webtray --list".`);
+  if (!app) throw new Error(`No app with id "${id}" in ${CONFIG_FILE}. Run "webroost --list".`);
   return resolveApp(app);
 }
 

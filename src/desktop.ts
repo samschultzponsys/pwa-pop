@@ -14,8 +14,14 @@ import {
  * GNOME only accept ids that start with the Flatpak's id (the same scheme
  * Chrome's Flatpak uses for PWAs), so there it is "<flatpak-id>.<app-id>".
  */
-export const desktopId = (id: string) => (IN_FLATPAK && process.env.FLATPAK_ID ? `${process.env.FLATPAK_ID}.${id}` : `webtray-${id}`);
-const legacyDesktopId = (id: string) => `webtray-${id}`;
+export const desktopId = (id: string) => (IN_FLATPAK && process.env.FLATPAK_ID ? `${process.env.FLATPAK_ID}.${id}` : `webroost-${id}`);
+/**
+ * Entry names used by earlier versions: "webtray-<id>" (native packages, and
+ * Flatpak before 1.7) and "io.github.samschultzponsys.PwaPop.<id>" (the
+ * Flatpak before the rename to WebRoost).
+ */
+const LEGACY_FLATPAK_ID = 'io.github.samschultzponsys.PwaPop';
+const legacyDesktopIds = (id: string) => [`webtray-${id}`, `${LEGACY_FLATPAK_ID}.${id}`];
 export const desktopFile = (id: string) => path.join(APPLICATIONS_DIR, `${desktopId(id)}.desktop`);
 export const autostartFile = (id: string) => path.join(AUTOSTART_DIR, `${desktopId(id)}.desktop`);
 
@@ -32,7 +38,7 @@ function execLine(args: string[], fieldCode = ''): string {
 }
 
 /**
- * The icon file a .desktop entry points at. It lives in ~/.config/webtray/icons
+ * The icon file a .desktop entry points at. It lives in ~/.config/webroost/icons
  * (AppImage mounts are temporary) and includes a duplicate's colour/label.
  */
 export function stableIcon(app: AppConfig): string {
@@ -53,17 +59,17 @@ function entry(app: AppConfig, icon: string, args: string[], extra: Record<strin
     Version: '1.5',
     Name: app.name,
     GenericName: 'Web App',
-    Comment: `${app.name} — runs in the tray with PWA Pop`,
-    Exec: execLine(args, extra['X-WebTray-FieldCode'] ?? ''),
+    Comment: `${app.name} — runs in the tray with WebRoost`,
+    Exec: execLine(args, extra['X-WebRoost-FieldCode'] ?? ''),
     Icon: icon,
     Terminal: 'false',
     Categories: 'Network;WebBrowser;',
     StartupNotify: 'true',
     StartupWMClass: desktopId(app.id),
-    'X-WebTray-Id': app.id,
+    'X-WebRoost-Id': app.id,
     ...extra,
   };
-  delete fields['X-WebTray-FieldCode'];
+  delete fields['X-WebRoost-FieldCode'];
   return '[Desktop Entry]\n' + Object.entries(fields).map(([k, v]) => `${k}=${escapeValue(v)}`).join('\n') + '\n';
 }
 
@@ -75,7 +81,7 @@ export function installApp(app: AppConfig): InstallResult {
   ensureDir(APPLICATIONS_DIR);
   const schemes = (app.handle_schemes ?? []).filter((x) => /^[a-z][a-z0-9+.-]*$/i.test(x));
   const extra: Record<string, string> = schemes.length
-    ? { MimeType: schemes.map((x) => `x-scheme-handler/${x};`).join(''), 'X-WebTray-FieldCode': '%u' }
+    ? { MimeType: schemes.map((x) => `x-scheme-handler/${x};`).join(''), 'X-WebRoost-FieldCode': '%u' }
     : {};
   fs.writeFileSync(desktopFile(app.id), entry(app, icon, ['--app', app.id], extra), { mode: 0o755 });
   const file = `${desktopId(app.id)}.desktop`;
@@ -83,7 +89,7 @@ export function installApp(app: AppConfig): InstallResult {
     clearCallHandler(file);
     if (schemes.length) setDefaultCallHandler(file, schemes);
   } catch (e) {
-    console.warn('[webtray] could not register the link handler', e);
+    console.warn('[webroost] could not register the link handler', e);
   }
   let auto: string | null = null;
   if (r.autostart) auto = setAutostart(app, true);
@@ -112,8 +118,8 @@ export function setAutostart(app: AppConfig, enabled: boolean): string | null {
 export function uninstallApp(id: string): string[] {
   const removed: string[] = [];
   clearCallHandler(`${desktopId(id)}.desktop`);
-  clearCallHandler(`${legacyDesktopId(id)}.desktop`);
-  const legacy = [path.join(APPLICATIONS_DIR, `${legacyDesktopId(id)}.desktop`), path.join(AUTOSTART_DIR, `${legacyDesktopId(id)}.desktop`)];
+  for (const old of legacyDesktopIds(id)) clearCallHandler(`${old}.desktop`);
+  const legacy = legacyDesktopIds(id).flatMap((old) => [path.join(APPLICATIONS_DIR, `${old}.desktop`), path.join(AUTOSTART_DIR, `${old}.desktop`)]);
   for (const f of [desktopFile(id), autostartFile(id), ...legacy]) {
     if (fs.existsSync(f)) { fs.rmSync(f, { force: true }); removed.push(f); }
   }
@@ -128,47 +134,59 @@ export function isInstalled(id: string) {
 export function installManagerEntry(): string {
   ensureDir(APPLICATIONS_DIR);
   ensureDir(ICON_DIR);
-  const icon = path.join(ICON_DIR, 'webtray.png');
+  const icon = path.join(ICON_DIR, 'webroost.png');
   fs.copyFileSync(assetPath('assets', 'icons', '256x256.png'), icon);
-  const file = path.join(APPLICATIONS_DIR, 'webtray.desktop');
-  fs.writeFileSync(file, entry({ id: 'manager', name: 'PWA Pop', url: 'about:blank' }, icon, [], {
+  const file = path.join(APPLICATIONS_DIR, 'webroost.desktop');
+  fs.writeFileSync(file, entry({ id: 'manager', name: 'WebRoost', url: 'about:blank' }, icon, [], {
     Comment: 'Turn web apps into tray-resident desktop apps',
-    StartupWMClass: 'webtray',
-    'X-WebTray-Id': 'manager',
+    StartupWMClass: 'webroost',
+    'X-WebRoost-Id': 'manager',
   }));
   return file;
 }
 
 /**
- * Flatpak installs from before 1.7 wrote webtray-<id>.desktop, which KDE
- * ignores for sandboxed windows (every window showed the PWA Pop icon).
- * Rewrite those entries under the Flatpak-prefixed name.
+ * Bring menu and autostart entries up to date:
+ *  - entries written under an earlier name (webtray-<id>, the PWA Pop Flatpak's
+ *    io.github.samschultzponsys.PwaPop.<id>) are rewritten under the current
+ *    one and removed, together with their tel:/sip: default-handler entry;
+ *  - Flatpak entries whose Exec line is out of date (no --branch) are rewritten.
  */
 export function migrateDesktopEntries(apps: AppConfig[]): void {
-  if (!IN_FLATPAK) return;
+  // The manager's own menu entry from PWA Pop (native packages).
+  const oldManager = path.join(APPLICATIONS_DIR, 'webtray.desktop');
+  if (fs.existsSync(oldManager)) {
+    try { installManagerEntry(); fs.rmSync(oldManager, { force: true }); } catch { /* best effort */ }
+  }
   for (const app of apps) {
-    // Entries written by a build without `--branch` in Exec: rewrite them.
-    for (const f of [desktopFile(app.id), autostartFile(app.id)]) {
-      try {
-        if (!fs.existsSync(f)) continue;
-        const want = execLine(['--app', app.id]);
-        const has = /^Exec=(.*)$/m.exec(fs.readFileSync(f, 'utf8'))?.[1] ?? '';
-        if (!has.startsWith(want)) {
-          if (f === desktopFile(app.id)) installApp(app); else setAutostart(app, true);
-        }
-      } catch { /* best effort */ }
+    if (IN_FLATPAK) {
+      for (const f of [desktopFile(app.id), autostartFile(app.id)]) {
+        try {
+          if (!fs.existsSync(f)) continue;
+          const want = execLine(['--app', app.id]);
+          const has = /^Exec=(.*)$/m.exec(fs.readFileSync(f, 'utf8'))?.[1] ?? '';
+          if (!has.startsWith(want)) {
+            if (f === desktopFile(app.id)) installApp(app); else setAutostart(app, true);
+          }
+        } catch { /* best effort */ }
+      }
     }
-    const oldMenu = path.join(APPLICATIONS_DIR, `${legacyDesktopId(app.id)}.desktop`);
-    const oldAuto = path.join(AUTOSTART_DIR, `${legacyDesktopId(app.id)}.desktop`);
-    const hadMenu = fs.existsSync(oldMenu), hadAuto = fs.existsSync(oldAuto);
-    if (!hadMenu && !hadAuto) continue;
-    try {
-      if (hadMenu) installApp(app);
-      if (hadAuto) setAutostart(app, true);
-      fs.rmSync(oldMenu, { force: true });
-      fs.rmSync(oldAuto, { force: true });
-    } catch (e) {
-      console.warn(`[webtray] could not migrate desktop entries for ${app.id}`, e);
+    for (const old of legacyDesktopIds(app.id)) {
+      if (old === desktopId(app.id)) continue;
+      const oldMenu = path.join(APPLICATIONS_DIR, `${old}.desktop`);
+      const oldAuto = path.join(AUTOSTART_DIR, `${old}.desktop`);
+      const hadMenu = fs.existsSync(oldMenu), hadAuto = fs.existsSync(oldAuto);
+      if (!hadMenu && !hadAuto) continue;
+      try {
+        clearCallHandler(`${old}.desktop`);
+        if (hadMenu) installApp(app);
+        if (hadAuto) setAutostart(app, true);
+        fs.rmSync(oldMenu, { force: true });
+        fs.rmSync(oldAuto, { force: true });
+        console.log(`[webroost] moved ${old}.desktop to ${desktopId(app.id)}.desktop`);
+      } catch (e) {
+        console.warn(`[webroost] could not migrate desktop entries for ${app.id}`, e);
+      }
     }
   }
 }

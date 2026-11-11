@@ -33,7 +33,7 @@ fs.writeFileSync(clFile, cl);
 console.log(`Version bumped to ${next}`);
 
 // Keep the Flatpak AppStream release list in sync.
-const metaFile = path.join(root, 'flatpak', 'io.github.samschultzponsys.PwaPop.metainfo.xml');
+const metaFile = path.join(root, 'flatpak', 'io.github.samschultzponsys.WebRoost.metainfo.xml');
 if (fs.existsSync(metaFile)) {
   const meta = fs.readFileSync(metaFile, 'utf8');
   fs.writeFileSync(metaFile, meta.replace('<releases>', `<releases>\n    <release version="${next}" date="${date}"/>`));

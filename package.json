@@ -1,7 +1,7 @@
 {
-  "name": "pwa-pop",
-  "productName": "PWA Pop",
-  "version": "4.0.0",
+  "name": "webroost",
+  "productName": "WebRoost",
+  "version": "4.1.0",
   "description": "Run web apps (Outlook, Claude, Linkus…) as standalone, tray-resident desktop apps on Linux",
   "main": "dist/main.js",
   "license": "MIT",
@@ -9,12 +9,12 @@
     "name": "Sam Schultz",
     "email": "sam.schultz2014@gmail.com"
   },
-  "homepage": "https://github.com/samschultzponsys/pwa-pop",
+  "homepage": "https://github.com/samschultzponsys/webroost",
   "repository": {
     "type": "git",
-    "url": "https://github.com/samschultzponsys/pwa-pop.git"
+    "url": "https://github.com/samschultzponsys/webroost.git"
   },
-  "desktopName": "webtray.desktop",
+  "desktopName": "webroost.desktop",
   "scripts": {
     "build": "tsc -p .",
     "start": "npm run build && electron .",
@@ -38,10 +38,10 @@
     "typescript": "^5.9.3"
   },
   "build": {
-    "appId": "io.github.samschultzponsys.PwaPop",
-    "productName": "webtray",
-    "executableName": "webtray",
-    "artifactName": "pwa-pop-${env.RELEASE_VERSION}-${arch}.${ext}",
+    "appId": "io.github.samschultzponsys.WebRoost",
+    "productName": "webroost",
+    "executableName": "webroost",
+    "artifactName": "webroost-${env.RELEASE_VERSION}-${arch}.${ext}",
     "copyright": "Copyright © 2026 Sam Schultz",
     "directories": {
       "output": "release",
@@ -55,8 +55,8 @@
     ],
     "extraResources": [
       {
-        "from": "build/70-webtray-hid.rules",
-        "to": "70-webtray-hid.rules"
+        "from": "build/70-webroost-hid.rules",
+        "to": "70-webroost-hid.rules"
       }
     ],
     "linux": {
@@ -69,21 +69,21 @@
       ],
       "category": "Network",
       "icon": "assets/icons",
-      "executableName": "webtray",
+      "executableName": "webroost",
       "synopsis": "Web apps as tray-resident desktop apps",
-      "description": "PWA Pop runs web apps such as Outlook, Claude and the Yeastar Linkus softphone as standalone desktop apps with their own tray icon, notifications, unread badges, autostart and headset (WebHID) support.",
+      "description": "WebRoost runs web apps such as Outlook, Claude and the Yeastar Linkus softphone as standalone desktop apps with their own tray icon, notifications, unread badges, autostart and headset (WebHID) support.",
       "maintainer": "Sam Schultz <sam.schultz2014@gmail.com>",
-      "vendor": "PWA Pop",
+      "vendor": "WebRoost",
       "executableArgs": [
         "--ozone-platform-hint=auto",
         "--enable-features=WaylandWindowDecorations"
       ],
       "desktop": {
         "entry": {
-          "Name": "PWA Pop",
+          "Name": "WebRoost",
           "GenericName": "Web App Manager",
           "Comment": "Turn web apps into tray-resident desktop apps",
-          "StartupWMClass": "webtray",
+          "StartupWMClass": "webroost",
           "Keywords": "pwa;web;app;tray;outlook;softphone;",
           "Categories": "Network;Utility;"
         }
@@ -103,7 +103,8 @@
       ],
       "fpm": [
         "--rpm-rpmbuild-define=_build_id_links none",
-        "--rpm-os=linux"
+        "--rpm-os=linux",
+        "--replaces=pwa-pop"
       ]
     },
     "deb": {
@@ -119,11 +120,19 @@
         "libatspi2.0-0",
         "libuuid1",
         "libsecret-1-0"
+      ],
+      "fpm": [
+        "--replaces=pwa-pop",
+        "--conflicts=pwa-pop"
       ]
     },
     "pacman": {
       "afterInstall": "build/after-install.sh",
-      "afterRemove": "build/after-remove.sh"
+      "afterRemove": "build/after-remove.sh",
+      "fpm": [
+        "--replaces=pwa-pop",
+        "--conflicts=pwa-pop"
+      ]
     },
     "appImage": {},
     "publish": null

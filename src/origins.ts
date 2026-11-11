@@ -11,7 +11,7 @@ export class OriginMatcher {
     for (const raw of patterns) {
       const m = /^([a-z][a-z0-9+.-]*):\/\/(\*\.)?([^/:]+)(?::(\d+))?\/?$/i.exec(raw.trim());
       if (!m) {
-        console.warn(`[webtray] ignoring invalid allowed_origins entry: ${raw}`);
+        console.warn(`[webroost] ignoring invalid allowed_origins entry: ${raw}`);
         continue;
       }
       this.rules.push({

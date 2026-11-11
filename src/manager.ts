@@ -174,8 +174,8 @@ function registerIpc(win: BrowserWindow) {
     const stamp = new Date().toISOString().slice(0, 10);
     const r = await dialog.showSaveDialog(win, {
       title: 'Export apps',
-      defaultPath: path.join(app.getPath('downloads'), `pwa-pop-apps-${stamp}.pwapop`),
-      filters: [{ name: 'PWA Pop export', extensions: ['pwapop'] }],
+      defaultPath: path.join(app.getPath('downloads'), `webroost-apps-${stamp}.webroost`),
+      filters: [{ name: 'WebRoost export', extensions: ['webroost'] }],
     });
     if (r.canceled || !r.filePath) return null;
     fs.writeFileSync(r.filePath, JSON.stringify(data, null, 2));
@@ -185,7 +185,7 @@ function registerIpc(win: BrowserWindow) {
   h('apps:import', async () => {
     const r = await dialog.showOpenDialog(win, {
       title: 'Import apps', properties: ['openFile'],
-      filters: [{ name: 'PWA Pop export', extensions: ['pwapop', 'json'] }],
+      filters: [{ name: 'WebRoost export', extensions: ['webroost', 'pwapop', 'json'] }],
     });
     if (r.canceled || !r.filePaths[0]) return null;
     const data = parseExport(fs.readFileSync(r.filePaths[0], 'utf8'));
@@ -201,7 +201,7 @@ function registerIpc(win: BrowserWindow) {
     if (response === 0) return null;
     const { written, skipped } = applyImport(data, clash.length ? response === 2 : true);
     for (const cfg of written) {
-      try { installApp(cfg); } catch (e) { console.warn(`[webtray] could not install ${cfg.id}: ${e}`); }
+      try { installApp(cfg); } catch (e) { console.warn(`[webroost] could not install ${cfg.id}: ${e}`); }
       makePrimaryPhoneApp(cfg);
     }
     return { imported: written.length, skipped: skipped.length };
@@ -238,7 +238,7 @@ function registerIpc(win: BrowserWindow) {
 }
 
 export async function runManager(): Promise<void> {
-  const ses = session.fromPartition('persist:webtray-manager');
+  const ses = session.fromPartition('persist:webroost-manager');
   ses.setUserAgent(cleanUserAgent(ses.getUserAgent()));
   // "Detect headset": we capture the WebHID chooser list and cancel the chooser.
   ses.setPermissionCheckHandler((_wc, permission) => permission === 'hid');
@@ -250,10 +250,10 @@ export async function runManager(): Promise<void> {
 
   const win = new BrowserWindow({
     width: 980, height: 760, minWidth: 640, minHeight: 480,
-    title: 'PWA Pop', icon: assetPath('assets', 'icons', '256x256.png'),
+    title: 'WebRoost', icon: assetPath('assets', 'icons', '256x256.png'),
     autoHideMenuBar: true, show: false, backgroundColor: '#f5f6fa',
     webPreferences: {
-      partition: 'persist:webtray-manager',
+      partition: 'persist:webroost-manager',
       preload: path.join(__dirname, 'preload', 'manager-preload.js'),
       contextIsolation: true, sandbox: true, nodeIntegration: false,
     },
@@ -292,7 +292,7 @@ function watchForNewVersion(win: BrowserWindow) {
     restarting = true;
     app.releaseSingleInstanceLock();
     const err = await spawnSelf([]);
-    if (err) { console.warn(`[webtray] manager restart failed: ${err}`); restarting = false; return; }
+    if (err) { console.warn(`[webroost] manager restart failed: ${err}`); restarting = false; return; }
     app.exit(0);
   }, 15_000);
 }

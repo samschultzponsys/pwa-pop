@@ -25,7 +25,7 @@ export async function rasterize(data: Buffer, mime: string, size = 256): Promise
   if (!helper || helper.isDestroyed()) {
     helper = new BrowserWindow({
       show: false, width: 16, height: 16,
-      webPreferences: { sandbox: true, contextIsolation: true, javascript: true, partition: 'webtray-icon-helper' },
+      webPreferences: { sandbox: true, contextIsolation: true, javascript: true, partition: 'webroost-icon-helper' },
     });
     helperReady = helper.loadURL('data:text/html,<!doctype html><title>icon</title>');
   }
@@ -74,7 +74,7 @@ export async function loadIconFile(file: string | null): Promise<NativeImage> {
     const img = await imageFromBuffer(fs.readFileSync(file), MIME[ext] ?? '');
     if (img) return img;
   } catch (e) {
-    console.warn(`[webtray] could not load icon ${file}:`, e);
+    console.warn(`[webroost] could not load icon ${file}:`, e);
   }
   return defaultIcon();
 }

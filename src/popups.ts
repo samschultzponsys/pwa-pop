@@ -54,7 +54,7 @@ function iconFile(img: NativeImage): string {
 export class Popups {
   private helper: ChildProcessWithoutNullStreams | null = null;
   private ready = false;
-  private broken = !IN_FLATPAK || process.env.WEBTRAY_NOTIFY === 'electron';
+  private broken = !IN_FLATPAK || process.env.WEBROOST_NOTIFY === 'electron';
   private pending = new Map<string, { o: PopupOptions; ev: PopupEvents; fellBack: boolean; electron?: Notification }>();
   private seq = 0;
 

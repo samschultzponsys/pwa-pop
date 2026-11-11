@@ -4,7 +4,7 @@
  *
  * KDE Plasma does not pop up notifications sent by the app process (or its
  * children) while it accepts the very same notification from a process the
- * portal started, so PWA Pop sends its popups from here. Talks JSON lines on
+ * portal started, so WebRoost sends its popups from here. Talks JSON lines on
  * stdin/stdout:
  *   in:  {op:"show", key, appName, icon, title, body, desktopEntry, urgent}
  *        {op:"close", key}
@@ -43,7 +43,7 @@ async function main() {
       try {
         const hints: Record<string, unknown> = { urgency: new dbus.Variant('y', m.urgent ? 2 : 1) };
         if (m.desktopEntry) hints['desktop-entry'] = new dbus.Variant('s', String(m.desktopEntry));
-        const id: number = await n.Notify(String(m.appName || 'PWA Pop'), 0, String(m.icon || ''),
+        const id: number = await n.Notify(String(m.appName || 'WebRoost'), 0, String(m.icon || ''),
           String(m.title || ' '), String(m.body || ''), ['default', 'Open'], hints, m.urgent ? 0 : -1);
         keyById.set(id, m.key); idByKey.set(m.key, id);
         out({ ev: 'shown', key: m.key });

@@ -1,7 +1,7 @@
-/* PWA Pop manager UI — plain JS, talks to the main process via window.webtray. */
+/* WebRoost manager UI — plain JS, talks to the main process via window.webroost. */
 'use strict';
 
-const api = window.webtray;
+const api = window.webroost;
 const $ = (s) => document.querySelector(s);
 const el = (tag, props = {}, ...kids) => {
   const e = document.createElement(tag);
@@ -593,7 +593,7 @@ const importApps = () => guard(async () => {
 });
 $('#btn-import').addEventListener('click', importApps);
 document.querySelector('[data-action=import]').addEventListener('click', importApps);
-$('#btn-manager-entry').addEventListener('click', () => guard(async () => { await api.installManager(); toast('PWA Pop added to the application menu'); }));
+$('#btn-manager-entry').addEventListener('click', () => guard(async () => { await api.installManager(); toast('WebRoost added to the application menu'); }));
 window.addEventListener('focus', refresh);
 // Keep "running" / Open / Show / Quit current while the manager is open.
 setInterval(() => { if (!document.hidden && document.hasFocus() && !$('#editor').open) refresh().catch(() => {}); }, 10000);
@@ -605,7 +605,7 @@ function showUpdate(u) {
   const banner = $('#update-banner');
   if (!u || !u.available) { banner.classList.add('hidden'); return; }
   banner.classList.remove('hidden');
-  $('#update-title').textContent = `PWA Pop ${u.latest} is available`;
+  $('#update-title').textContent = `WebRoost ${u.latest} is available`;
   const how = {
     flatpak: 'Click "How to update" for the steps for this Flatpak.',
     appimage: 'Installing replaces this AppImage file.',
@@ -626,7 +626,7 @@ async function checkUpdate(force) {
   loadGuide().catch(() => {});
   if (force) {
     if (u.error) toast(`Update check failed: ${u.error}`);
-    else if (!u.available) toast(`PWA Pop ${u.current} is the latest version`);
+    else if (!u.available) toast(`WebRoost ${u.current} is the latest version`);
   }
 }
 
@@ -671,7 +671,7 @@ async function showGuide() {
 
 $('#btn-guide').addEventListener('click', () => guard(showGuide));
 $('#btn-update-howto').addEventListener('click', () => guard(showGuide));
-$('#btn-guide-releases').addEventListener('click', () => api.openExternal(lastUpdate?.releaseUrl || 'https://github.com/samschultzponsys/pwa-pop/releases/latest'));
+$('#btn-guide-releases').addEventListener('click', () => api.openExternal(lastUpdate?.releaseUrl || 'https://github.com/samschultzponsys/webroost/releases/latest'));
 $('#btn-check-update').addEventListener('click', () => guard(() => checkUpdate(true)));
 $('#btn-update-notes').addEventListener('click', () => { if (lastUpdate?.releaseUrl) api.openExternal(lastUpdate.releaseUrl); });
 $('#btn-update-install').addEventListener('click', () => guard(async () => {
@@ -698,7 +698,7 @@ $('#f-autoupdate').addEventListener('change', (e) => guard(() => api.setAutoUpda
 
 (async () => {
   const info = await api.info();
-  $('#version').textContent = `PWA Pop ${info.version}`;
+  $('#version').textContent = `WebRoost ${info.version}`;
   $('#config-path').textContent = info.configFile;
   $('#btn-manager-entry').classList.toggle('hidden', !info.appImage);
   loadGuide().catch(() => {});

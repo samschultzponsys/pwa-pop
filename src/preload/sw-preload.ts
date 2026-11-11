@@ -15,7 +15,7 @@ ipcRenderer.on('wt:notify-event', (_e, id: number, type: string) => {
   for (const l of listeners) l(id, type);
 });
 
-contextBridge.exposeInMainWorld('__webtraySW', {
+contextBridge.exposeInMainWorld('__webroostSW', {
   show: (opts: unknown) => ipcRenderer.send('wt:notify', opts),
   close: (id: number) => ipcRenderer.send('wt:notify-close', id),
   onEvent: (cb: Listener) => { listeners.push(cb); },
@@ -24,10 +24,10 @@ contextBridge.exposeInMainWorld('__webtraySW', {
 
 function installSwShim(): void {
   const g = self as any;
-  const bridge = g.__webtraySW;
+  const bridge = g.__webroostSW;
   const SWR = g.ServiceWorkerRegistration;
-  if (!bridge || !SWR || g.__webtraySWShim) return;
-  g.__webtraySWShim = true;
+  if (!bridge || !SWR || g.__webroostSWShim) return;
+  g.__webroostSWShim = true;
 
   let seq = 0;
   const live = new Map<number, any>();
@@ -90,5 +90,5 @@ function installSwShim(): void {
 try {
   (contextBridge as any).executeInMainWorld({ func: installSwShim });
 } catch (e) {
-  console.warn('[webtray] service worker notification shim unavailable', e);
+  console.warn('[webroost] service worker notification shim unavailable', e);
 }

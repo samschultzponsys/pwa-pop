@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.samschultzponsys.PwaPop</id>
-  <name>PWA Pop</name>
+  <id>io.github.samschultzponsys.WebRoost</id>
+  <name>WebRoost</name>
   <summary>Run web apps as tray-resident desktop apps</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
   <developer id="io.github.samschultzponsys"><name>Sam Schultz</name></developer>
   <description>
-    <p>PWA Pop turns web apps such as Outlook, Claude or a web softphone into
+    <p>WebRoost turns web apps such as Outlook, Claude or a web softphone into
     standalone desktop apps. Each one gets its own window, tray icon, login
     session, native notifications, unread badge and optional autostart.
     USB headsets work through WebHID, so call buttons keep working.</p>
   </description>
-  <launchable type="desktop-id">io.github.samschultzponsys.PwaPop.desktop</launchable>
-  <url type="homepage">https://github.com/samschultzponsys/pwa-pop</url>
+  <launchable type="desktop-id">io.github.samschultzponsys.WebRoost.desktop</launchable>
+  <url type="homepage">https://github.com/samschultzponsys/webroost</url>
   <content_rating type="oars-1.1"/>
   <releases>
     <release version="3.0" date="2026-11-06"/>

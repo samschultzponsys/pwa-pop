@@ -1,33 +1,33 @@
 /*
- * webtray / PWA Pop entry point.
+ * webroost / WebRoost entry point.
  *
- *   webtray                      open the manager (add / edit apps)
- *   webtray --app <id> [--hidden] run one app in its own process with a tray icon
- *   webtray --install <id>       add a menu entry (+ autostart if configured)
- *   webtray --uninstall <id>     remove the menu + autostart entries
- *   webtray --list               list configured apps
- *   webtray --add <url> [--id x] [--name "X"] [--autostart] [--hidden]
+ *   webroost                      open the manager (add / edit apps)
+ *   webroost --app <id> [--hidden] run one app in its own process with a tray icon
+ *   webroost --install <id>       add a menu entry (+ autostart if configured)
+ *   webroost --uninstall <id>     remove the menu + autostart entries
+ *   webroost --list               list configured apps
+ *   webroost --add <url> [--id x] [--name "X"] [--autostart] [--hidden]
  */
 import * as path from 'path';
 import { app } from 'electron';
 import { AppConfig, getApp, ID_RE, loadApps, upsertApp } from './config';
 import { autostartFile, desktopFile, desktopId, installApp, isInstalled, migrateDesktopEntries, uninstallApp } from './desktop';
-import { CONFIG_FILE, ensureDir, PROFILE_DIR, releaseVersion, writeVersionMarker } from './paths';
+import { CONFIG_FILE, ensureDir, migrateLegacyConfig, PROFILE_DIR, releaseVersion, writeVersionMarker } from './paths';
 
-const HELP = `PWA Pop (webtray) — run web apps as tray-resident desktop apps
+const HELP = `WebRoost (webroost) — run web apps as tray-resident desktop apps
 
 Usage:
-  webtray                         Open the PWA Pop manager window
-  webtray --app <id> [--hidden]   Run the app <id> from apps.yaml
-  webtray --install <id>          Write the menu entry (and autostart entry if autostart: true)
-  webtray --uninstall <id>        Remove the menu and autostart entries
-  webtray --list                  Show configured apps
-  webtray --add <url> [--id <id>] [--name <name>] [--autostart] [--start-hidden]
+  webroost                         Open the WebRoost manager window
+  webroost --app <id> [--hidden]   Run the app <id> from apps.yaml
+  webroost --install <id>          Write the menu entry (and autostart entry if autostart: true)
+  webroost --uninstall <id>        Remove the menu and autostart entries
+  webroost --list                  Show configured apps
+  webroost --add <url> [--id <id>] [--name <name>] [--autostart] [--start-hidden]
                                   Add an app to apps.yaml
-  webtray --restart-all           Ask running apps to restart (after an update)
-  webtray --check-update          Check GitHub for a newer PWA Pop
-  webtray --update                Download, verify and install it (AppImage, rpm, deb, pacman)
-  webtray --version | --help
+  webroost --restart-all           Ask running apps to restart (after an update)
+  webroost --check-update          Check GitHub for a newer WebRoost
+  webroost --update                Download, verify and install it (AppImage, rpm, deb, pacman)
+  webroost --version | --help
 
 Config: ${CONFIG_FILE}
 `;
@@ -41,8 +41,8 @@ app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
 app.commandLine.appendSwitch('enable-features', 'WaylandWindowDecorations,WebRTCPipeWireCapturer');
 
 // A tray app must not die (or show a crash dialog) because of one stray error.
-process.on('uncaughtException', (e) => { console.error('[webtray] uncaught exception:', e); });
-process.on('unhandledRejection', (e) => { console.error('[webtray] unhandled rejection:', e); });
+process.on('uncaughtException', (e) => { console.error('[webroost] uncaught exception:', e); });
+process.on('unhandledRejection', (e) => { console.error('[webroost] unhandled rejection:', e); });
 
 // Electron puts its own args first; skip them. Chromium switches are ignored.
 const argv = process.argv.slice(app.isPackaged ? 1 : 2);
@@ -60,9 +60,11 @@ function cleanUserAgentFallback(ua: string): string {
 }
 
 function out(msg: string) { process.stdout.write(msg + '\n'); }
-function fail(msg: string): never { process.stderr.write(`webtray: ${msg}\n`); app.exit(1); process.exit(1); }
+function fail(msg: string): never { process.stderr.write(`webroost: ${msg}\n`); app.exit(1); process.exit(1); }
 
 function cli(): boolean {
+  // First start after the PWA Pop -> WebRoost rename: bring settings and logins along.
+  migrateLegacyConfig();
   if (flag('--help') || flag('-h')) { out(HELP); return true; }
   if (flag('--version') || flag('-v')) { out(releaseVersion()); return true; }
 
@@ -111,7 +113,7 @@ function cli(): boolean {
     if (flag('--autostart')) cfg.autostart = true;
     if (flag('--start-hidden')) cfg.start_hidden = true;
     upsertApp(cfg);
-    out(`Added "${id}" to ${CONFIG_FILE}. Run: webtray --install ${id}`);
+    out(`Added "${id}" to ${CONFIG_FILE}. Run: webroost --install ${id}`);
     return true;
   }
   return false;
@@ -123,10 +125,10 @@ async function updateCli(install: boolean): Promise<void> {
   if (u.error) fail(`update check failed: ${u.error}`);
   if (!u.available) {
     const g = await updateGuide();
-    out(`PWA Pop ${u.current} is up to date (installed as ${g.label}). ${g.summary}`);
+    out(`WebRoost ${u.current} is up to date (installed as ${g.label}). ${g.summary}`);
     return;
   }
-  out(`PWA Pop ${u.latest} is available (you have ${u.current}, installed as ${u.kind}).`);
+  out(`WebRoost ${u.latest} is available (you have ${u.current}, installed as ${u.kind}).`);
   if (!install) return;
   if (!u.canInstall) {
     const g = await updateGuide();
@@ -145,9 +147,9 @@ async function updateCli(install: boolean): Promise<void> {
 function main() {
   if (flag('--restart-all')) {
     // Run by the update commands right after installing: tell every running
-    // PWA Pop app to restart onto this version (they wait for a quiet moment).
+    // WebRoost app to restart onto this version (they wait for a quiet moment).
     writeVersionMarker(true);
-    out(`Asked running PWA Pop apps to restart onto ${releaseVersion()}. They restart when you're not on a call or typing in them.`);
+    out(`Asked running WebRoost apps to restart onto ${releaseVersion()}. They restart when you're not on a call or typing in them.`);
     app.exit(0);
     return;
   }
@@ -175,13 +177,13 @@ function main() {
     app.userAgentFallback = cleanUserAgentFallback(app.userAgentFallback);
     ensureDir(PROFILE_DIR);
     app.setPath('userData', path.join(PROFILE_DIR, cfg.id));
-    // Ties windows, taskbar badges and icons to webtray-<id>.desktop.
+    // Ties windows, taskbar badges and icons to webroost-<id>.desktop.
     process.env.CHROME_DESKTOP = `${desktopId(cfg.id)}.desktop`;
     app.commandLine.appendSwitch('class', desktopId(cfg.id));
     // Wayland compositors handle the minimize button themselves and don't
     // tell the app, so "minimize to the tray" can't work there. Under
-    // XWayland every minimize is reported. WEBTRAY_NATIVE_WAYLAND=1 opts out.
-    if (cfg.minimize_to_tray && process.env.WAYLAND_DISPLAY && process.env.DISPLAY && !process.env.WEBTRAY_NATIVE_WAYLAND) {
+    // XWayland every minimize is reported. WEBROOST_NATIVE_WAYLAND=1 opts out.
+    if (cfg.minimize_to_tray && process.env.WAYLAND_DISPLAY && process.env.DISPLAY && !process.env.WEBROOST_NATIVE_WAYLAND) {
       app.commandLine.appendSwitch('ozone-platform', 'x11');
     }
     if (!app.requestSingleInstanceLock({ id: cfg.id })) { app.exit(0); return; }
@@ -200,11 +202,11 @@ function main() {
   }
 
   // Manager UI.
-  app.setName('PWA Pop');
+  app.setName('WebRoost');
   ensureDir(PROFILE_DIR);
   app.setPath('userData', path.join(PROFILE_DIR, '_manager'));
-  process.env.CHROME_DESKTOP = process.env.FLATPAK_ID ? `${process.env.FLATPAK_ID}.desktop` : 'webtray.desktop';
-  app.commandLine.appendSwitch('class', 'webtray');
+  process.env.CHROME_DESKTOP = process.env.FLATPAK_ID ? `${process.env.FLATPAK_ID}.desktop` : 'webroost.desktop';
+  app.commandLine.appendSwitch('class', 'webroost');
   if (!app.requestSingleInstanceLock()) { app.exit(0); return; }
   try { migrateDesktopEntries(loadApps()); } catch { /* best effort */ }
   writeVersionMarker();

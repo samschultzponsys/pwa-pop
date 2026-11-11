@@ -139,7 +139,7 @@ export class NotificationBridge {
     this.lastSiteNotification = Date.now();
     debug(`notification from ${src.key} (${src.url()}): ${o.title}`);
     if (!this.host.isAllowed(src.url())) {
-      console.warn(`[webtray] notification from ${src.url()} blocked: origin not in allowed_origins`);
+      console.warn(`[webroost] notification from ${src.url()} blocked: origin not in allowed_origins`);
       src.send(o.id, 'error');
       return;
     }
@@ -172,24 +172,24 @@ export class NotificationBridge {
       onClick: () => { this.host.activate(); src.send(o.id, 'click'); },
       onClose: () => { this.live.delete(key); src.send(o.id, 'close'); },
       onFail: (err) => {
-        console.warn(`[webtray] notification failed: ${err}`);
+        console.warn(`[webroost] notification failed: ${err}`);
         this.live.delete(key);
         src.send(o.id, 'error');
       },
     });
   }
 
-  /** Native notification raised by webtray itself (downloads etc.). */
+  /** Native notification raised by webroost itself (downloads etc.). */
   notify(title: string, body: string, onClick?: () => void) {
     if (this.host.isMuted()) { debug(`notification skipped (muted): ${title}`); return; }
-    if (!Notification.isSupported()) { console.warn('[webtray] native notifications are not supported here'); return; }
+    if (!Notification.isSupported()) { console.warn('[webroost] native notifications are not supported here'); return; }
     debug(`showing notification (${this.popups.method()}): ${title} | ${body}`);
     const key = `self:${Date.now()}:${Math.random()}`;
     const entry: Live = { n: { close: () => {} }, src: null, key, tag: '', id: 0 };
     this.live.set(key, entry);
     entry.n = this.popups.show({ title, body, icon: this.host.appIcon(), urgent: false, silent: false }, {
       onShow: () => debug(`notification shown: ${title}`),
-      onFail: (err) => { console.warn(`[webtray] notification failed: ${err}`); this.live.delete(key); },
+      onFail: (err) => { console.warn(`[webroost] notification failed: ${err}`); this.live.delete(key); },
       onClick: () => (onClick ?? (() => this.host.activate()))(),
       onClose: () => this.live.delete(key),
     });

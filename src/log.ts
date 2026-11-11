@@ -1,7 +1,7 @@
 /*
  * Debug log. Lines always go to an in-memory ring buffer so "Save
  * diagnostics…" in the tray menu can write them out without a terminal; with
- * WEBTRAY_DEBUG=1 they are also printed.
+ * WEBROOST_DEBUG=1 they are also printed.
  */
 const lines: string[] = [];
 const MAX = 400;
@@ -13,7 +13,7 @@ function record(line: string) {
 
 export function debug(msg: string): void {
   record(msg);
-  if (process.env.WEBTRAY_DEBUG) console.log(`[webtray] ${msg}`);
+  if (process.env.WEBROOST_DEBUG) console.log(`[webroost] ${msg}`);
 }
 
 export function recentLog(): string[] {

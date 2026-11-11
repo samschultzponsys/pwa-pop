@@ -8,6 +8,11 @@ if type update-alternatives >/dev/null 2>&1; then
 else
     rm -f '/usr/bin/${executable}'
 fi
+if type update-alternatives >/dev/null 2>&1; then
+    update-alternatives --remove 'webtray' '/opt/${sanitizedProductName}/${executable}' 2>/dev/null || true
+elif [ "`readlink /usr/bin/webtray`" = '/opt/${sanitizedProductName}/${executable}' ]; then
+    rm -f /usr/bin/webtray
+fi
 
 APPARMOR_PROFILE_DEST='/etc/apparmor.d/${executable}'
 
@@ -25,10 +30,10 @@ if [ -f "$APPARMOR_PROFILE_DEST" ]; then
   fi
   rm -f "$APPARMOR_PROFILE_DEST"
 fi
-# --- PWA Pop: remove the headset udev rule (only on full removal) ----------
+# --- WebRoost: remove the headset udev rule (only on full removal) ----------
 # rpm passes $1=0 on erase, deb passes "remove"/"purge"; upgrades keep the rule.
 if [ "$1" = "0" ] || [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
-  rm -f /usr/lib/udev/rules.d/70-webtray-hid.rules
+  rm -f /usr/lib/udev/rules.d/70-webroost-hid.rules
   if hash udevadm 2>/dev/null; then udevadm control --reload-rules >/dev/null 2>&1 || true; fi
 fi
 exit 0

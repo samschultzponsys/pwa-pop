@@ -1,18 +1,18 @@
-# Flatpak build of PWA Pop. Packages the electron-builder "linux-unpacked"
+# Flatpak build of WebRoost. Packages the electron-builder "linux-unpacked"
 # output, so run `npm run dist` (or at least the tar.gz target) first:
 #
 #   flatpak-builder --user --install-deps-from=flathub --force-clean \
-#       --repo=repo build-dir io.github.samschultzponsys.PwaPop.yml
-#   flatpak build-bundle repo pwa-pop.flatpak io.github.samschultzponsys.PwaPop
+#       --repo=repo build-dir io.github.samschultzponsys.WebRoost.yml
+#   flatpak build-bundle repo webroost.flatpak io.github.samschultzponsys.WebRoost
 #
 # CI does exactly this (see .github/workflows/release.yml).
-app-id: io.github.samschultzponsys.PwaPop
+app-id: io.github.samschultzponsys.WebRoost
 runtime: org.freedesktop.Platform
 runtime-version: '25.08'
 sdk: org.freedesktop.Sdk
 base: org.electronjs.Electron2.BaseApp
 base-version: '25.08'
-command: webtray
+command: webroost
 separate-locales: false
 finish-args:
   - --share=ipc
@@ -24,22 +24,24 @@ finish-args:
   - --socket=pulseaudio
   - --device=dri
   # Headsets (WebHID over /dev/hidraw*) and webcams. The host still needs the
-  # udev rule from build/70-webtray-hid.rules for hidraw access.
+  # udev rule from build/70-webroost-hid.rules for hidraw access.
   - --device=all
   # Native notifications and the KDE / AppIndicator system tray.
   - --talk-name=org.freedesktop.Notifications
   - --talk-name=org.kde.StatusNotifierWatcher
   - --own-name=org.kde.*
   # Same config as the native packages, plus menu + autostart entries.
-  - --filesystem=xdg-config/webtray:create
+  - --filesystem=xdg-config/webroost:create
+  # The folder PWA Pop (WebRoost's earlier name) used: copied over on first start.
+  - --filesystem=xdg-config/webtray
   - --filesystem=xdg-config/autostart:create
   - --filesystem=xdg-data/applications:create
-  # Set PWA Pop apps as the default for tel:/callto:/sip: links (click-to-call).
+  # Set WebRoost apps as the default for tel:/callto:/sip: links (click-to-call).
   - --filesystem=xdg-config/mimeapps.list
   - --filesystem=xdg-download
   - --env=ELECTRON_OZONE_PLATFORM_HINT=auto
 modules:
-  - name: pwa-pop
+  - name: webroost
     buildsystem: simple
     # Electron ships prebuilt binaries: nothing to strip or split into debuginfo.
     build-options:
@@ -50,17 +52,19 @@ modules:
         path: ../release/linux-unpacked
         dest: app
       - type: file
-        path: webtray.sh
+        path: webroost.sh
       - type: file
-        path: io.github.samschultzponsys.PwaPop.desktop
+        path: io.github.samschultzponsys.WebRoost.desktop
       - type: file
-        path: io.github.samschultzponsys.PwaPop.metainfo.xml
+        path: io.github.samschultzponsys.WebRoost.metainfo.xml
       - type: dir
         path: ../assets/icons
         dest: icons
     build-commands:
-      - cp -a app /app/webtray
-      - install -Dm755 webtray.sh /app/bin/webtray
-      - install -Dm644 io.github.samschultzponsys.PwaPop.desktop /app/share/applications/io.github.samschultzponsys.PwaPop.desktop
-      - install -Dm644 io.github.samschultzponsys.PwaPop.metainfo.xml /app/share/metainfo/io.github.samschultzponsys.PwaPop.metainfo.xml
-      - for s in 16 24 32 48 64 128 256 512; do install -Dm644 icons/${s}x${s}.png /app/share/icons/hicolor/${s}x${s}/apps/io.github.samschultzponsys.PwaPop.png; done
+      - cp -a app /app/webroost
+      - install -Dm755 webroost.sh /app/bin/webroost
+      # The command's name before the rename keeps working.
+      - ln -s webroost /app/bin/webtray
+      - install -Dm644 io.github.samschultzponsys.WebRoost.desktop /app/share/applications/io.github.samschultzponsys.WebRoost.desktop
+      - install -Dm644 io.github.samschultzponsys.WebRoost.metainfo.xml /app/share/metainfo/io.github.samschultzponsys.WebRoost.metainfo.xml
+      - for s in 16 24 32 48 64 128 256 512; do install -Dm644 icons/${s}x${s}.png /app/share/icons/hicolor/${s}x${s}/apps/io.github.samschultzponsys.WebRoost.png; done

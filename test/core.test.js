@@ -1,11 +1,11 @@
-// Unit tests for the pure parts of webtray. Run with: npm test
+// Unit tests for the pure parts of webroost. Run with: npm test
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'webtray-test-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'webroost-test-'));
 process.env.XDG_CONFIG_HOME = tmp;
 process.env.XDG_DATA_HOME = path.join(tmp, 'data');
 
@@ -42,7 +42,7 @@ test('unread parsing', () => {
 
 test('config round trip keeps comments and hex ids', () => {
   config.ensureConfigFile();
-  const file = path.join(tmp, 'webtray', 'apps.yaml');
+  const file = path.join(tmp, 'webroost', 'apps.yaml');
   fs.writeFileSync(file, `# my comment\n- id: linkus\n  name: Linkus\n  url: https://pbx.example.com/\n  hid_devices: [{ vendorId: 0x6993 }]\n`);
   assert.strictEqual(config.loadApps()[0].hid_devices[0].vendorId, 0x6993);
   config.upsertApp({ id: 'claude', name: 'Claude', url: 'https://claude.ai', hid_devices: [{ vendorId: 0x0b0e, productId: 0x24 }] });
@@ -59,7 +59,7 @@ test('config round trip keeps comments and hex ids', () => {
 });
 
 test('config validation', () => {
-  const file = path.join(tmp, 'webtray', 'apps.yaml');
+  const file = path.join(tmp, 'webroost', 'apps.yaml');
   fs.writeFileSync(file, `- id: Bad Id\n  url: https://x.com\n`);
   assert.throws(() => config.loadApps(), /id/);
   fs.writeFileSync(file, `- id: a\n  url: nope\n`);
@@ -108,7 +108,7 @@ test('click-to-call link parsing', () => {
   assert.strictEqual(numberFromLink('callto://+12059797522'), '+12059797522');
   assert.strictEqual(numberFromLink('sip:102@pbx.example.com'), '102');
   assert.strictEqual(numberFromLink('tel:*97'), '*97');
-  assert.strictEqual(findCallLink(['/app/bin/webtray', '--app', 'linkus', 'callto:+1205']), 'callto:+1205');
+  assert.strictEqual(findCallLink(['/app/bin/webroost', '--app', 'linkus', 'callto:+1205']), 'callto:+1205');
   assert.strictEqual(findCallLink(['--app', 'linkus', 'https://x']), null);
   assert.strictEqual(findCallLink(['sip:1@x'], ['tel']), null);
 });
@@ -117,38 +117,39 @@ test('default link handler in mimeapps.list', () => {
   const { setDefaultCallHandler, clearCallHandler } = require('../dist/calls');
   const file = path.join(tmp, 'mimeapps.list');
   fs.writeFileSync(file, '[Default Applications]\ntext/html=firefox.desktop\nx-scheme-handler/tel=other.desktop;\n');
-  setDefaultCallHandler('webtray-linkus.desktop', ['tel', 'callto']);
+  setDefaultCallHandler('webroost-linkus.desktop', ['tel', 'callto']);
   let t = fs.readFileSync(file, 'utf8');
   assert.match(t, /text\/html=firefox\.desktop/);
-  assert.match(t, /x-scheme-handler\/tel=webtray-linkus\.desktop;/);
-  assert.match(t, /\[Added Associations\][^[]*x-scheme-handler\/callto=webtray-linkus\.desktop;/);
-  clearCallHandler('webtray-linkus.desktop');
+  assert.match(t, /x-scheme-handler\/tel=webroost-linkus\.desktop;/);
+  assert.match(t, /\[Added Associations\][^[]*x-scheme-handler\/callto=webroost-linkus\.desktop;/);
+  clearCallHandler('webroost-linkus.desktop');
   t = fs.readFileSync(file, 'utf8');
-  assert.doesNotMatch(t, /webtray-linkus/);
+  assert.doesNotMatch(t, /webroost-linkus/);
   assert.match(t, /text\/html=firefox\.desktop/);
 });
 
 test('update one-liners fetch the right package and verify it', () => {
   const { curlCommand, packageFile } = require('../dist/updater');
-  assert.strictEqual(packageFile('flatpak', '2.2'), 'pwa-pop-2.2-x86_64.flatpak');
-  assert.strictEqual(packageFile('deb', '2.2'), 'pwa-pop-2.2-amd64.deb');
+  assert.strictEqual(packageFile('flatpak', '2.2'), 'webroost-2.2-x86_64.flatpak');
+  assert.strictEqual(packageFile('deb', '2.2'), 'webroost-2.2-amd64.deb');
   const f = curlCommand('flatpak', '2.2');
-  assert.match(f, /releases\/download\/v2\.2\/pwa-pop-2\.2-x86_64\.flatpak/);
-  assert.match(f, /SHA256SUMS\.txt \| grep " pwa-pop-2\.2-x86_64\.flatpak\$" \| sha256sum -c -/);
-  assert.match(f, /&& flatpak install -y --user \.\/pwa-pop-2\.2-x86_64\.flatpak && flatpak run --branch=stable io\.github\.samschultzponsys\.PwaPop --restart-all$/);
-  assert.match(curlCommand('rpm', '2.2', { rpmTool: 'dnf' }), /sudo dnf install \.\/pwa-pop-2\.2-x86_64\.rpm && webtray --restart-all$/);
-  assert.match(curlCommand('pacman', '2.2'), /pwa-pop-2\.2-x64\.pacman/);
+  assert.match(f, /releases\/download\/v2\.2\/webroost-2\.2-x86_64\.flatpak/);
+  assert.match(f, /SHA256SUMS\.txt \| grep " webroost-2\.2-x86_64\.flatpak\$" \| sha256sum -c -/);
+  assert.match(f, /&& flatpak install -y --user \.\/webroost-2\.2-x86_64\.flatpak && flatpak run --branch=stable io\.github\.samschultzponsys\.WebRoost --restart-all$/);
+  assert.match(curlCommand('rpm', '2.2', { rpmTool: 'dnf' }), /sudo dnf install \.\/webroost-2\.2-x86_64\.rpm && webroost --restart-all$/);
+  assert.match(curlCommand('pacman', '2.2'), /webroost-2\.2-x64\.pacman/);
 });
 
 test('import of an export file writes apps and icons', () => {
   const { parseExport, applyImport } = require('../dist/transfer');
   const { ICON_DIR } = require('../dist/paths');
-  fs.writeFileSync(path.join(tmp, 'webtray', 'apps.yaml'), '[]\n'); // earlier tests leave a broken file
-  assert.throws(() => parseExport(JSON.stringify({ format: 'pwa-pop-export', apps: [{ id: 'ok', name: 'x', url: 'file:///etc' }] })), /invalid app/);
-  assert.throws(() => parseExport('{"apps":[]}'), /not a PWA Pop export/);
-  assert.throws(() => parseExport(JSON.stringify({ format: 'pwa-pop-export', apps: [{ id: 'Bad ID', name: 'x', url: 'https://x' }] })), /invalid app/);
+  fs.writeFileSync(path.join(tmp, 'webroost', 'apps.yaml'), '[]\n'); // earlier tests leave a broken file
+  assert.throws(() => parseExport(JSON.stringify({ format: 'webroost-export', apps: [{ id: 'ok', name: 'x', url: 'file:///etc' }] })), /invalid app/);
+  assert.ok(parseExport(JSON.stringify({ format: 'pwa-pop-export', apps: [] })), 'PWA Pop exports still import');
+  assert.throws(() => parseExport('{"apps":[]}'), /not a WebRoost export/);
+  assert.throws(() => parseExport(JSON.stringify({ format: 'webroost-export', apps: [{ id: 'Bad ID', name: 'x', url: 'https://x' }] })), /invalid app/);
   const file = parseExport(JSON.stringify({
-    format: 'pwa-pop-export', version: 1, apps: [
+    format: 'webroost-export', version: 1, apps: [
       { id: 'imp-mail', name: 'Imported mail', url: 'https://mail.example.com', notify_on_unread: true },
       { id: 'imp-chat', name: 'Imported chat', url: 'https://chat.example.com' },
     ],
@@ -165,4 +166,29 @@ test('import of an export file writes apps and icons', () => {
   assert.deepStrictEqual(applyImport(file, false).skipped, ['imp-mail', 'imp-chat']);
   applyImport(file, true);
   assert.strictEqual(config.loadApps().find((a) => a.id === 'imp-chat').name, 'Renamed');
+});
+
+test('first start after the rename copies ~/.config/webtray to ~/.config/webroost', () => {
+  const { migrateLegacyConfig, CONFIG_DIR, LEGACY_CONFIG_DIR } = require('../dist/paths');
+  fs.rmSync(CONFIG_DIR, { recursive: true, force: true });
+  fs.mkdirSync(path.join(LEGACY_CONFIG_DIR, 'profiles', 'outlook'), { recursive: true });
+  fs.mkdirSync(path.join(LEGACY_CONFIG_DIR, 'icons'), { recursive: true });
+  fs.writeFileSync(path.join(LEGACY_CONFIG_DIR, 'icons', 'outlook.png'), 'png');
+  fs.writeFileSync(path.join(LEGACY_CONFIG_DIR, 'profiles', 'outlook', 'Cookies'), 'cookies');
+  fs.symlinkSync('host-123', path.join(LEGACY_CONFIG_DIR, 'profiles', 'outlook', 'SingletonLock'));
+  fs.writeFileSync(path.join(LEGACY_CONFIG_DIR, 'apps.yaml'),
+    `- id: outlook\n  name: Outlook\n  url: https://outlook.office.com\n  icon: ${path.join(LEGACY_CONFIG_DIR, 'icons', 'outlook.png')}\n`);
+
+  migrateLegacyConfig();
+
+  const yaml = fs.readFileSync(path.join(CONFIG_DIR, 'apps.yaml'), 'utf8');
+  assert.match(yaml, new RegExp(`icon: ${path.join(CONFIG_DIR, 'icons', 'outlook.png').replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}`));
+  assert.strictEqual(fs.readFileSync(path.join(CONFIG_DIR, 'profiles', 'outlook', 'Cookies'), 'utf8'), 'cookies', 'logins come along');
+  assert.ok(!fs.existsSync(path.join(CONFIG_DIR, 'profiles', 'outlook', 'SingletonLock')), 'Chromium lock files are not copied');
+  assert.ok(fs.existsSync(path.join(LEGACY_CONFIG_DIR, 'MOVED-TO-WEBROOST.txt')));
+  assert.ok(!fs.existsSync(path.join(CONFIG_DIR, '.migrating')));
+  // Runs once: a second call changes nothing.
+  fs.writeFileSync(path.join(CONFIG_DIR, 'apps.yaml'), '[]\n');
+  migrateLegacyConfig();
+  assert.strictEqual(fs.readFileSync(path.join(CONFIG_DIR, 'apps.yaml'), 'utf8'), '[]\n');
 });

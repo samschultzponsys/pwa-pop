@@ -1,4 +1,4 @@
-# PWA Pop / webtray: let the logged-in user open USB headsets over hidraw so
+# WebRoost / webroost: let the logged-in user open USB headsets over hidraw so
 # web softphones (Linkus, Teams, etc.) can use the headset call buttons via WebHID.
 # Installed to /usr/lib/udev/rules.d/ by the rpm/deb/pacman packages.
 # AppImage / Flatpak users: copy this file there manually (see README).

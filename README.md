@@ -1,16 +1,22 @@
-<p align="center"><img src="assets/icons/256x256.png" width="128" alt="PWA Pop icon"></p>
+<p align="center"><img src="assets/icons/256x256.png" width="128" alt="WebRoost icon"></p>
 
-<h1 align="center">PWA Pop</h1>
+<h1 align="center">WebRoost</h1>
 
-<p align="center"><b>Web apps that live in your tray.</b><br>
+<p align="center"><b>Any website, roosting in your tray.</b><br>
 Run Outlook, Claude, the Yeastar Linkus softphone or any other site as a real desktop app,
 with its own window, tray icon, login, notifications, unread badge, autostart and headset buttons.</p>
 
-<p align="center">Current version: <b>4.0</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
+<p align="center">Current version: <b>4.1</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/webroost/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
 
 ---
 
-PWA Pop (command: `webtray`) is a small Electron wrapper. It is built to fully
+> **Formerly PWA Pop.** Same project, new name, and one name everywhere now:
+> the app, the `webroost` command and `~/.config/webroost`. See
+> [Moving from PWA Pop](#moving-from-pwa-pop).
+
+---
+
+WebRoost (command: `webroost`) is a small Electron wrapper. It is built to fully
 replace Chrome "installed PWAs" on Linux, especially **KDE Plasma 6 on Wayland**,
 and it works on any desktop with a StatusNotifierItem / AppIndicator tray.
 
@@ -18,7 +24,7 @@ and it works on any desktop with a StatusNotifierItem / AppIndicator tray.
 
 | | |
 |---|---|
-| **One process per app** | `webtray --app outlook`, with its own single-instance lock. Launching it again just shows the window. |
+| **One process per app** | `webroost --app outlook`, with its own single-instance lock. Launching it again just shows the window. |
 | **Tray icon per app** | Left-click shows or hides the app's windows. The right-click menu has Show, Reload, Mute notifications, Manage apps…, Quit. |
 | **Close to tray** | The close button (and Ctrl+W) hides the window. Quit only from the tray. |
 | **Always awake** | Background throttling is off and hidden windows aren't throttled, so calls ring while the app is hidden. |
@@ -30,32 +36,32 @@ and it works on any desktop with a StatusNotifierItem / AppIndicator tray.
 | **Unread badges** | "(3) Inbox" in the title puts a numbered badge on the tray icon and taskbar entry. |
 | **Remembers windows** | Size and position per app. |
 | **Wayland native** | `--ozone-platform-hint=auto` and `WaylandWindowDecorations`, with correct icons and taskbar grouping per app. |
-| **Manager UI** | Paste any URL. PWA Pop reads the site's manifest for name, icon and start page, and can detect your headset. |
+| **Manager UI** | Paste any URL. WebRoost reads the site's manifest for name, icon and start page, and can detect your headset. |
 | **Autostart** | One checkbox (or `autostart: true`). Apps start hidden in the tray at login. |
 
 ## Install
 
 Grab the files for the latest version from the
-[Releases page](https://github.com/samschultzponsys/pwa-pop/releases). Every release
+[Releases page](https://github.com/samschultzponsys/webroost/releases). Every release
 has all formats, with the version in each file name:
 
 | Distro | Package | Install |
 |---|---|---|
-| Fedora, RHEL, Alma, openSUSE | `pwa-pop-<ver>-x86_64.rpm` | `sudo dnf install ./pwa-pop-<ver>-x86_64.rpm` |
-| Debian, Ubuntu, Mint, Pop!_OS | `pwa-pop-<ver>-amd64.deb` | `sudo apt install ./pwa-pop-<ver>-amd64.deb` |
-| Arch, Manjaro, EndeavourOS | `pwa-pop-<ver>-x64.pacman` | `sudo pacman -U pwa-pop-<ver>-x64.pacman` |
-| Any distro, sandboxed | `pwa-pop-<ver>-x86_64.flatpak` | `flatpak install --user ./pwa-pop-<ver>-x86_64.flatpak` |
-| Any distro, portable | `pwa-pop-<ver>-x86_64.AppImage` | `chmod +x pwa-pop-*.AppImage && ./pwa-pop-*.AppImage` |
-| Manual | `pwa-pop-<ver>-x64.tar.gz` | extract anywhere, run `./webtray` |
+| Fedora, RHEL, Alma, openSUSE | `webroost-<ver>-x86_64.rpm` | `sudo dnf install ./webroost-<ver>-x86_64.rpm` |
+| Debian, Ubuntu, Mint, Pop!_OS | `webroost-<ver>-amd64.deb` | `sudo apt install ./webroost-<ver>-amd64.deb` |
+| Arch, Manjaro, EndeavourOS | `webroost-<ver>-x64.pacman` | `sudo pacman -U webroost-<ver>-x64.pacman` |
+| Any distro, sandboxed | `webroost-<ver>-x86_64.flatpak` | `flatpak install --user ./webroost-<ver>-x86_64.flatpak` |
+| Any distro, portable | `webroost-<ver>-x86_64.AppImage` | `chmod +x webroost-*.AppImage && ./webroost-*.AppImage` |
+| Manual | `webroost-<ver>-x64.tar.gz` | extract anywhere, run `./webroost` |
 
-The rpm/deb/pacman packages install to `/opt/webtray` and add `/usr/bin/webtray`,
-a "PWA Pop" menu entry and the headset udev rule.
+The rpm/deb/pacman packages install to `/opt/webroost` and add `/usr/bin/webroost`,
+a "WebRoost" menu entry and the headset udev rule.
 
-**Flatpak with automatic updates:** install from the PWA Pop Flatpak repository
+**Flatpak with automatic updates:** install from the WebRoost Flatpak repository
 instead of a downloaded file, and Discover / `flatpak update` keep it current:
 
 ```bash
-flatpak install --user https://samschultzponsys.github.io/pwa-pop/pwa-pop.flatpakref
+flatpak install --user https://samschultzponsys.github.io/webroost/webroost.flatpakref
 ```
 
 ### Which one should I use?
@@ -66,24 +72,45 @@ nothing else to set up. The Flatpak and AppImage support headsets too, but you
 have to install the rule yourself once:
 
 ```bash
-curl -LO https://raw.githubusercontent.com/samschultzponsys/pwa-pop/main/build/70-webtray-hid.rules
+curl -LO https://raw.githubusercontent.com/samschultzponsys/webroost/main/build/70-webroost-hid.rules
 ```
 
 ```bash
-sudo cp 70-webtray-hid.rules /usr/lib/udev/rules.d/ && sudo udevadm control --reload-rules && sudo udevadm trigger
+sudo cp 70-webroost-hid.rules /usr/lib/udev/rules.d/ && sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
 
 Then replug the headset. The Flatpak is granted `--device=all` (hidraw +
-webcams), the system tray, notifications, `~/.config/webtray`, the autostart
+webcams), the system tray, notifications, `~/.config/webroost`, the autostart
 folder and `~/.local/share/applications`, so every feature works inside the sandbox.
 
 > **Ubuntu 24.04+ AppImage note:** Ubuntu blocks unprivileged user namespaces,
 > so Chromium's sandbox won't start from an AppImage. Use the `.deb` (it ships
 > an AppArmor profile), or run the AppImage with `--no-sandbox`.
 
+## Moving from PWA Pop
+
+WebRoost is PWA Pop renamed. The Flatpak has a new ID
+(`io.github.samschultzponsys.WebRoost`), so it installs as a new app. Once:
+
+1. Install the WebRoost package from the
+   [latest release](https://github.com/samschultzponsys/webroost/releases/latest)
+   (for the Flatpak: `flatpak install --user ./webroost-<version>-x86_64.flatpak`).
+2. Quit PWA Pop's apps and open **WebRoost**. On first start it:
+   - copies `~/.config/webtray` (apps, icons, window positions and your logins)
+     to `~/.config/webroost`;
+   - replaces the old menu and autostart entries with WebRoost ones;
+   - moves the tel:/callto:/sip: default to WebRoost.
+3. Remove PWA Pop: `flatpak uninstall --user io.github.samschultzponsys.PwaPop`
+   (rpm/deb/pacman packages are replaced automatically).
+4. When everything works, `~/.config/webtray` can be deleted (it contains a
+   `MOVED-TO-WEBROOST.txt` note).
+
+The `webtray` command, `WEBTRAY_*` settings and `.pwapop` export files still
+work.
+
 ## Quick start
 
-1. Open **PWA Pop** from your app menu (or run `webtray`).
+1. Open **WebRoost** from your app menu (or run `webroost`).
 2. Click **+ Add app**, paste an address such as `https://outlook.office.com/mail`
    and press **Fetch details**.
 3. Tick *Start automatically when I log in* / *Start hidden in the tray* as you like, then **Save**.
@@ -92,11 +119,11 @@ folder and `~/.local/share/applications`, so every feature works inside the sand
 ### "Should I use the PWA link?"
 
 No. Paste the **normal address** of the site. If the site publishes a web app
-manifest (Outlook, Claude and most modern apps do), PWA Pop reads its name,
+manifest (Outlook, Claude and most modern apps do), WebRoost reads its name,
 start page and icon automatically. Chrome-only install links
 (`chrome-extension://…`, `--app-id=…`) aren't needed and won't work. For sites
 behind a login (such as an on-prem PBX), the manifest may be hidden. In that case
-PWA Pop uses the page's favicon after your first sign-in, or you can pick an icon.
+WebRoost uses the page's favicon after your first sign-in, or you can pick an icon.
 
 ### Memory
 
@@ -111,7 +138,7 @@ shared one browser core, keeping the phone app in its own process.
 ### Moving to another computer
 
 In the manager, **Export…** saves every app, with its settings and icon, to one
-`.pwapop` file. On the other computer, install PWA Pop and use **Import…** (also
+`.webroost` file (exports from PWA Pop, `.pwapop`, import too). On the other computer, install WebRoost and use **Import…** (also
 offered on the empty start screen). The apps are added to the application menu
 and autostart as before. Logins don't move, because they are encrypted with
 each computer's keyring, so sign in to each app once.
@@ -119,25 +146,25 @@ each computer's keyring, so sign in to each app once.
 ## Command line
 
 ```
-webtray                          Open the PWA Pop manager
-webtray --app <id> [--hidden]    Run the app <id> (--hidden: tray only)
-webtray --install <id>           Write ~/.local/share/applications/webtray-<id>.desktop
-                                 (+ ~/.config/autostart/webtray-<id>.desktop if autostart: true)
-webtray --uninstall <id>         Remove both entries
-webtray --list                   Show configured apps and what is installed
-webtray --add <url> [--id x] [--name "X"] [--autostart] [--start-hidden]
-webtray --restart-all            Restart running apps (they wait until you're not on a call)
-webtray --check-update           Check for a newer PWA Pop
-webtray --update                 Download, verify and install it
-webtray --version
+webroost                          Open the WebRoost manager
+webroost --app <id> [--hidden]    Run the app <id> (--hidden: tray only)
+webroost --install <id>           Write ~/.local/share/applications/webroost-<id>.desktop
+                                 (+ ~/.config/autostart/webroost-<id>.desktop if autostart: true)
+webroost --uninstall <id>         Remove both entries
+webroost --list                   Show configured apps and what is installed
+webroost --add <url> [--id x] [--name "X"] [--autostart] [--start-hidden]
+webroost --restart-all            Restart running apps (they wait until you're not on a call)
+webroost --check-update           Check for a newer WebRoost
+webroost --update                 Download, verify and install it
+webroost --version
 ```
 
-Set `WEBTRAY_DEBUG=1` to log show/hide events. Denied permissions and redirects
+Set `WEBROOST_DEBUG=1` to log show/hide events. Denied permissions and redirects
 that leave `allowed_origins` are always logged to stderr.
 
 ## Configuration
 
-Everything lives in **`~/.config/webtray/apps.yaml`**. The manager edits it for
+Everything lives in **`~/.config/webroost/apps.yaml`**. The manager edits it for
 you and keeps your comments. A full, commented example is in
 [`examples/apps.yaml`](examples/apps.yaml):
 
@@ -145,7 +172,7 @@ you and keeps your comments. A full, commented example is in
 - id: linkus
   name: Linkus
   url: https://pbx.example.com/
-  icon: ~/.config/webtray/icons/linkus.png
+  icon: ~/.config/webroost/icons/linkus.png
   start_hidden: true
   autostart: true
   allowed_origins: ["https://pbx.example.com"]
@@ -180,29 +207,29 @@ you and keeps your comments. A full, commented example is in
 | `width`, `height` | 1200×800 | Initial size. |
 | `handle_schemes` | – | Link types this app opens and dials, e.g. `[tel, callto, sip]` (click-to-call). The app becomes their default. |
 | `dial_input`, `dial_button`, `dial_open` | – | CSS selectors for click-to-call, set from the app's right-click menu ("Use for click-to-call"). |
-| `pass_shortcuts` | `false` | Send every key combination to the page (remote desktop tools like MeshCentral, web terminals) instead of PWA Pop's Ctrl+W/R, F5, F12, Alt+←/→ and zoom shortcuts. |
+| `pass_shortcuts` | `false` | Send every key combination to the page (remote desktop tools like MeshCentral, web terminals) instead of WebRoost's Ctrl+W/R, F5, F12, Alt+←/→ and zoom shortcuts. |
 | `forget_session_cookies` | `false` | Sign-ins normally survive restarts, updates and reboots: the site's session cookies are kept (with a 14-day expiry), like Chrome's "continue where you left off". Set to `true` to drop them whenever the app closes. |
 | `notify_on_unread` | `false` | Show a notification whenever the unread count goes up. For sites that only notify through Chrome's web push, like the new Outlook. |
-| `minimize_to_tray` | `false` | The minimize button hides the app to its tray icon instead of the taskbar. On Wayland the app runs under XWayland, because Wayland compositors don't tell apps they were minimized. Changing it restarts the app. `WEBTRAY_NATIVE_WAYLAND=1` keeps it on Wayland. |
+| `minimize_to_tray` | `false` | The minimize button hides the app to its tray icon instead of the taskbar. On Wayland the app runs under XWayland, because Wayland compositors don't tell apps they were minimized. Changing it restarts the app. `WEBROOST_NATIVE_WAYLAND=1` keeps it on Wayland. |
 | `memory_limit_mb` | – | Reload, then restart, the app when it uses more than this many MB. Never during calls or while you're using it. |
 | `icon_color` | – | Recolour the icon: `blue`, `green`, `purple`, `orange`, `teal`, `pink`, `red`, `yellow`. Used for duplicates. |
 | `icon_label` | – | 1–2 characters in a coloured chip on the icon's top-left corner (e.g. `2` or `W`). |
-| `icon_auto` | – | Set by the manager when it picked the icon: PWA Pop swaps in the site's own icon after you sign in. |
+| `icon_auto` | – | Set by the manager when it picked the icon: WebRoost swaps in the site's own icon after you sign in. |
 
-Other files under `~/.config/webtray/`: `icons/` (app icons), `state/<id>.json`
+Other files under `~/.config/webroost/`: `icons/` (app icons), `state/<id>.json`
 (window geometry, mute) and `profiles/<id>/` (cookies, logins, storage; delete it
 to log out completely).
 
 ### Adding an app by hand
 
-1. Add an entry to `apps.yaml` (or run `webtray --add https://app.example.com --name Example`).
+1. Add an entry to `apps.yaml` (or run `webroost --add https://app.example.com --name Example`).
 2. Put the site and its sign-in origins in `allowed_origins`. Run the app from a
    terminal: any redirect that leaves the list is logged, so you can see what to add.
-3. Run `webtray --install <id>`. The app is now in the menu (and in autostart if `autostart: true`).
+3. Run `webroost --install <id>`. The app is now in the menu (and in autostart if `autostart: true`).
 
 ### Several accounts on the same site
 
-Every app has its own profile (`~/.config/webtray/profiles/<id>/`), so two
+Every app has its own profile (`~/.config/webroost/profiles/<id>/`), so two
 entries for the same site are fully separate: different logins, cookies and
 settings. In the manager, click **Duplicate** on an app. The copy gets a unique
 ID and name (`claude-2`, "Claude (2)"), a different icon colour and a numbered
@@ -230,7 +257,7 @@ EPOS/Sennheiser `0x1395`.
 Requires Node.js 20+ and, for rpm, `rpmbuild` (`sudo dnf install rpm-build`).
 
 ```bash
-git clone https://github.com/samschultzponsys/pwa-pop && cd pwa-pop
+git clone https://github.com/samschultzponsys/webroost && cd webroost
 ```
 
 ```bash
@@ -266,18 +293,18 @@ npm run dist
 Flatpak (needs `flatpak-builder`, and run `npm run dist` first):
 
 ```bash
-cd flatpak && flatpak-builder --user --install-deps-from=flathub --force-clean --repo=repo build-dir io.github.samschultzponsys.PwaPop.yml
+cd flatpak && flatpak-builder --user --install-deps-from=flathub --force-clean --repo=repo build-dir io.github.samschultzponsys.WebRoost.yml
 ```
 
 ```bash
-flatpak build-bundle repo ../release/pwa-pop.flatpak io.github.samschultzponsys.PwaPop
+flatpak build-bundle repo ../release/webroost.flatpak io.github.samschultzponsys.WebRoost
 ```
 
 Unit tests: `npm test`. Manual release checks: [TESTING.md](TESTING.md).
 
 ## Updates
 
-PWA Pop checks GitHub Releases shortly after it starts and then every 12 hours,
+WebRoost checks GitHub Releases shortly after it starts and then every 12 hours,
 and tells you once per new version (notification, tray menu item and a banner
 in the manager). You can turn this off in the manager's footer.
 
@@ -290,7 +317,7 @@ in the manager). You can turn this off in the manager's footer.
 
 The manager's footer shows how this copy was installed. **How to update**
 opens the exact steps for that install, with copyable commands (also printed
-by `webtray --check-update`).
+by `webroost --check-update`).
 
 Every download is checked against the release's `SHA256SUMS.txt` before it is
 installed. Running apps switch to the new version when you restart them
@@ -305,44 +332,44 @@ manager's **How to update** fills in the current one for you.
 Flatpak:
 
 ```bash
-cd ~/Downloads && curl -fL -o pwa-pop-2.2-x86_64.flatpak https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/pwa-pop-2.2-x86_64.flatpak && curl -fsSL https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/SHA256SUMS.txt | grep " pwa-pop-2.2-x86_64.flatpak$" | sha256sum -c - && flatpak install -y --user ./pwa-pop-2.2-x86_64.flatpak && flatpak run --branch=stable io.github.samschultzponsys.PwaPop --restart-all
+cd ~/Downloads && curl -fL -o webroost-2.2-x86_64.flatpak https://github.com/samschultzponsys/webroost/releases/download/v2.2/webroost-2.2-x86_64.flatpak && curl -fsSL https://github.com/samschultzponsys/webroost/releases/download/v2.2/SHA256SUMS.txt | grep " webroost-2.2-x86_64.flatpak$" | sha256sum -c - && flatpak install -y --user ./webroost-2.2-x86_64.flatpak && flatpak run --branch=stable io.github.samschultzponsys.WebRoost --restart-all
 ```
 
 Fedora / RHEL (rpm):
 
 ```bash
-cd /tmp && curl -fL -o pwa-pop-2.2-x86_64.rpm https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/pwa-pop-2.2-x86_64.rpm && curl -fsSL https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/SHA256SUMS.txt | grep " pwa-pop-2.2-x86_64.rpm$" | sha256sum -c - && sudo dnf install ./pwa-pop-2.2-x86_64.rpm && webtray --restart-all
+cd /tmp && curl -fL -o webroost-2.2-x86_64.rpm https://github.com/samschultzponsys/webroost/releases/download/v2.2/webroost-2.2-x86_64.rpm && curl -fsSL https://github.com/samschultzponsys/webroost/releases/download/v2.2/SHA256SUMS.txt | grep " webroost-2.2-x86_64.rpm$" | sha256sum -c - && sudo dnf install ./webroost-2.2-x86_64.rpm && webroost --restart-all
 ```
 
 Debian / Ubuntu (deb):
 
 ```bash
-cd /tmp && curl -fL -o pwa-pop-2.2-amd64.deb https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/pwa-pop-2.2-amd64.deb && curl -fsSL https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/SHA256SUMS.txt | grep " pwa-pop-2.2-amd64.deb$" | sha256sum -c - && sudo apt install ./pwa-pop-2.2-amd64.deb && webtray --restart-all
+cd /tmp && curl -fL -o webroost-2.2-amd64.deb https://github.com/samschultzponsys/webroost/releases/download/v2.2/webroost-2.2-amd64.deb && curl -fsSL https://github.com/samschultzponsys/webroost/releases/download/v2.2/SHA256SUMS.txt | grep " webroost-2.2-amd64.deb$" | sha256sum -c - && sudo apt install ./webroost-2.2-amd64.deb && webroost --restart-all
 ```
 
 Arch (pacman):
 
 ```bash
-cd /tmp && curl -fL -o pwa-pop-2.2-x64.pacman https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/pwa-pop-2.2-x64.pacman && curl -fsSL https://github.com/samschultzponsys/pwa-pop/releases/download/v2.2/SHA256SUMS.txt | grep " pwa-pop-2.2-x64.pacman$" | sha256sum -c - && sudo pacman -U ./pwa-pop-2.2-x64.pacman && webtray --restart-all
+cd /tmp && curl -fL -o webroost-2.2-x64.pacman https://github.com/samschultzponsys/webroost/releases/download/v2.2/webroost-2.2-x64.pacman && curl -fsSL https://github.com/samschultzponsys/webroost/releases/download/v2.2/SHA256SUMS.txt | grep " webroost-2.2-x64.pacman$" | sha256sum -c - && sudo pacman -U ./webroost-2.2-x64.pacman && webroost --restart-all
 ```
 
 ### Maintainer setup for the Flatpak repository (one time)
 
 1. Repository **Settings → Pages → Build and deployment → Source: GitHub Actions**.
    The workflow then publishes the Flatpak repository to
-   `https://samschultzponsys.github.io/pwa-pop/` on every release.
+   `https://samschultzponsys.github.io/webroost/` on every release.
 2. Optional, recommended: sign the repository. Without a key it is published
    unsigned (still served over HTTPS). Create a key on your own machine:
 
    ```bash
-   gpg --batch --passphrase '' --quick-gen-key "PWA Pop Flatpak <sam.schultz2014@gmail.com>" ed25519 sign never
+   gpg --batch --passphrase '' --quick-gen-key "WebRoost Flatpak <sam.schultz2014@gmail.com>" ed25519 sign never
    ```
 
    ```bash
-   gpg --armor --export-secret-keys "PWA Pop Flatpak" > pwa-pop-flatpak.key
+   gpg --armor --export-secret-keys "WebRoost Flatpak" > webroost-flatpak.key
    ```
 
-   Paste the contents of `pwa-pop-flatpak.key` into **Settings → Secrets and
+   Paste the contents of `webroost-flatpak.key` into **Settings → Secrets and
    variables → Actions → New repository secret** named `FLATPAK_GPG_PRIVATE_KEY`,
    then delete the file. Once a release has been signed, keep using the same key;
    changing it later means users have to re-add the repository.
@@ -356,15 +383,15 @@ cd /tmp && curl -fL -o pwa-pop-2.2-x64.pacman https://github.com/samschultzponsy
 * GitHub Actions ([`release.yml`](.github/workflows/release.yml)) builds every
   package. When a version has no release yet, it publishes **one GitHub release
   `v<version>`** with every distro's package and `SHA256SUMS.txt` attached. File
-  names carry the version, e.g. `pwa-pop-1.1-x86_64.rpm`.
+  names carry the version, e.g. `webroost-1.1-x86_64.rpm`.
 
 ## How it works
 
 ```
-webtray --app linkus
+webroost --app linkus
   └─ Electron main process (src/main.ts)
-       ├─ userData = ~/.config/webtray/profiles/linkus   → per-app single-instance lock
-       ├─ CHROME_DESKTOP = webtray-linkus.desktop        → Wayland app_id, icon, badge
+       ├─ userData = ~/.config/webroost/profiles/linkus   → per-app single-instance lock
+       ├─ CHROME_DESKTOP = webroost-linkus.desktop        → Wayland app_id, icon, badge
        └─ AppRuntime (src/runtime.ts)
             ├─ session persist:linkus  → permission / WebHID / download handlers
             ├─ BrowserWindow (backgroundThrottling: false, close → hide)
@@ -384,20 +411,20 @@ webtray --app linkus
   Chrome user agent string.
 * **Notifications only in the history, no popup (KDE Plasma, Flatpak):**
   fixed in 3.7. Plasma didn't pop up notifications sent by the app's own
-  processes, so PWA Pop now sends them from a small helper started through the
-  Flatpak portal. Set `WEBTRAY_NOTIFY=electron` to go back to Electron's own
+  processes, so WebRoost now sends them from a small helper started through the
+  Flatpak portal. Set `WEBROOST_NOTIFY=electron` to go back to Electron's own
   notifications.
 * **No popup for new mail (Outlook):** in the manager, edit the app and tick
   *Notify when the unread count goes up* (`notify_on_unread: true`). Leave
   *Use urgent notifications* off for popups that go away by themselves, and
-  check that PWA Pop is allowed to show popups in your desktop's notification
+  check that WebRoost is allowed to show popups in your desktop's notification
   settings (KDE: System Settings → Notifications → Applications) and that Do
   Not Disturb is off. The tray menu's *Send test notification* checks the
   popup side. If new mail still stays quiet, send yourself a test email, wait
   a minute, then pick **Save diagnostics…** from the app's tray menu. It writes
-  `~/Downloads/pwa-pop-<id>-diagnostics.txt` (settings, where the unread count
+  `~/Downloads/webroost-<id>-diagnostics.txt` (settings, where the unread count
   is read from and a recent log, but no message contents) to attach to an issue.
-* **Start fresh:** quit the app, then `rm -rf ~/.config/webtray/profiles/<id>`.
+* **Start fresh:** quit the app, then `rm -rf ~/.config/webroost/profiles/<id>`.
 
 ## License
 

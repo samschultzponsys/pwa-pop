@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to PWA Pop are listed here.
+All notable changes to WebRoost (called PWA Pop up to 4.0) are listed here.
 
 Versions are `MAJOR.MINOR`: each release adds one to the minor number, and
 after `.9` it rolls over to the next major (1.8 → 1.9 → 2.0). Every version
@@ -8,6 +8,36 @@ has a GitHub release with all the Linux packages attached, and the version
 is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
+
+## [4.1] - 2026-11-11
+
+### Changed
+- **PWA Pop is now WebRoost**, with one name everywhere:
+  - the app;
+  - the `webroost` command;
+  - `~/.config/webroost`;
+  - the Flatpak `io.github.samschultzponsys.WebRoost`;
+  - `webroost-<version>-…` packages;
+  - desktop entries and `WEBROOST_*` settings;
+  - the repository `samschultzponsys/webroost`.
+
+  The new tagline is "Any website, roosting in your tray".
+
+### Added
+- **Automatic move-over from PWA Pop** on first start:
+  - `~/.config/webtray` is copied, with apps, icons, window state and the
+    apps' logins. Chromium lock files are left behind, and apps starting
+    together wait for one copy.
+  - Icon paths are updated.
+  - Old menu and autostart entries (`webtray-<id>`,
+    `io.github.samschultzponsys.PwaPop.<id>`) are replaced with WebRoost
+    ones, so PWA Pop no longer autostarts.
+  - The tel:/sip: default handler moves over.
+- **Compatibility:**
+  - The `webtray` command still works: an alias in every package.
+  - `WEBTRAY_*` environment settings still work.
+  - `.pwapop` export files still import.
+  - rpm/deb/pacman packages replace the old `pwa-pop` package.
 
 ## [4.0] - 2026-11-11
 

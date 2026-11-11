@@ -199,7 +199,7 @@ export class AppRuntime {
       }
     });
     this.watchConfig();
-    debug(`PWA Pop ${releaseVersion()} running ${this.cfg.id} on ${app.commandLine.getSwitchValue('ozone-platform') || 'auto'} display: notify_on_unread=${!!this.cfg.notify_on_unread} minimize_to_tray=${!!this.cfg.minimize_to_tray} urgent=${!!this.cfg.urgent_notifications} session=${process.env.XDG_SESSION_TYPE ?? '?'}`);
+    debug(`WebRoost ${releaseVersion()} running ${this.cfg.id} on ${app.commandLine.getSwitchValue('ozone-platform') || 'auto'} display: notify_on_unread=${!!this.cfg.notify_on_unread} minimize_to_tray=${!!this.cfg.minimize_to_tray} urgent=${!!this.cfg.urgent_notifications} session=${process.env.XDG_SESSION_TYPE ?? '?'}`);
     this.ses.serviceWorkers.on('running-status-changed', ({ versionId, runningStatus }) => {
       if (runningStatus !== 'running') return;
       const sw = this.ses.serviceWorkers.getWorkerFromVersionID(versionId);
@@ -250,7 +250,7 @@ export class AppRuntime {
       }
     } catch (e) {
       clipboard.writeText(num);
-      console.warn(`[webtray:${this.cfg.id}] dial failed`, e);
+      console.warn(`[webroost:${this.cfg.id}] dial failed`, e);
     } finally {
       this.dialing = false;
     }
@@ -269,7 +269,7 @@ export class AppRuntime {
       const what = kind === 'input' ? 'number field' : kind === 'button' ? 'call button' : 'dialpad tab';
       this.notifications.notify(`${this.cfg.name}: click-to-call ${what} saved`, selector);
     } catch (e) {
-      console.warn('[webtray] could not save selector', e);
+      console.warn('[webroost] could not save selector', e);
     }
   }
 
@@ -339,13 +339,13 @@ export class AppRuntime {
       if (now - this.reloadedForMemoryAt > 10 * 60_000) {
         // Step 1: reloading the page frees most memory and keeps the login.
         this.reloadedForMemoryAt = now;
-        console.warn(`[webtray:${this.cfg.id}] memory ${mb} MB over limit ${limit} MB: reloading`);
+        console.warn(`[webroost:${this.cfg.id}] memory ${mb} MB over limit ${limit} MB: reloading`);
         for (const w of this.children) if (!w.isDestroyed()) w.close();
         this.win.webContents.reload();
         this.notifications.notify(`${this.cfg.name} was reloaded to free memory`, `It was using ${fmt(mb)} (limit ${fmt(limit)}).`);
       } else if (now - this.reloadedForMemoryAt > 2 * 60_000) {
         // Step 2: still over a while after the reload, so restart the whole app.
-        console.warn(`[webtray:${this.cfg.id}] memory ${mb} MB still over limit ${limit} MB after reload: restarting`);
+        console.warn(`[webroost:${this.cfg.id}] memory ${mb} MB still over limit ${limit} MB after reload: restarting`);
         this.notifications.notify(`${this.cfg.name} is restarting to free memory`, `It was using ${fmt(mb)} (limit ${fmt(limit)}).`);
         this.restart();
       }
@@ -372,7 +372,7 @@ export class AppRuntime {
         if (fresh.notify_on_unread && !before.notify_on_unread) this.watchUnreadInPage();
         // Minimize to the tray switches between Wayland and XWayland (see
         // main.ts), which only takes effect on a restart.
-        if (!!fresh.minimize_to_tray !== !!before.minimize_to_tray && process.env.WAYLAND_DISPLAY && !process.env.WEBTRAY_NATIVE_WAYLAND) {
+        if (!!fresh.minimize_to_tray !== !!before.minimize_to_tray && process.env.WAYLAND_DISPLAY && !process.env.WEBROOST_NATIVE_WAYLAND) {
           debug('minimize_to_tray changed: restarting to switch display mode');
           setTimeout(() => void this.restart(), 1500);
         }
@@ -387,7 +387,7 @@ export class AppRuntime {
         this.refreshMenu();
         debug('settings reloaded from apps.yaml');
       } catch (e) {
-        console.warn(`[webtray:${this.cfg.id}] could not reload settings`, e);
+        console.warn(`[webroost:${this.cfg.id}] could not reload settings`, e);
       }
     }, 3000);
   }
@@ -500,13 +500,13 @@ export class AppRuntime {
         title: document.title,
         visibility: document.visibilityState,
         notificationPermission: typeof Notification === 'undefined' ? 'none' : Notification.permission,
-        shimInstalled: !!window.__webtrayShim,
+        shimInstalled: !!window.__webroostShim,
         probe: (${UNREAD_PROBE}).probe,
       })`, true);
     } catch (e) { page = `could not read the page: ${e}`; }
     const server = await notificationServerReport();
     const out = [
-      `PWA Pop ${releaseVersion()} diagnostics for "${this.cfg.id}" — ${new Date().toString()}`,
+      `WebRoost ${releaseVersion()} diagnostics for "${this.cfg.id}" — ${new Date().toString()}`,
       `session: ${process.env.XDG_SESSION_TYPE ?? '?'} desktop: ${process.env.XDG_CURRENT_DESKTOP ?? '?'} flatpak: ${IN_FLATPAK}`,
       `notifications supported: ${Notification.isSupported()} muted: ${!!this.state.data.muted} sent by: ${this.notifications.popups.method()}`,
       ...server,
@@ -522,7 +522,7 @@ export class AppRuntime {
       ...recentLog(),
     ].join('\n');
     const dir = app.getPath('downloads');
-    const file = path.join(dir, `pwa-pop-${this.cfg.id}-diagnostics.txt`);
+    const file = path.join(dir, `webroost-${this.cfg.id}-diagnostics.txt`);
     try {
       ensureDir(dir);
       fs.writeFileSync(file, out);
@@ -593,7 +593,7 @@ export class AppRuntime {
         this.refreshMenu();
       }
       if (this.busy() || (this.win.isVisible() && this.win.isFocused())) { debug(`update ${m.version} waiting: app in use`); return; }
-      console.warn(`[webtray:${this.cfg.id}] restarting onto PWA Pop ${m.version}`);
+      console.warn(`[webroost:${this.cfg.id}] restarting onto WebRoost ${m.version}`);
       this.restart();
     };
     setInterval(tick, 30_000);
@@ -653,7 +653,7 @@ export class AppRuntime {
     // Start the new copy as a detached process (inside Flatpak: in a fresh
     // sandbox via the portal, since children die with this sandbox).
     void spawnSelf(args).then((err) => {
-      if (err) console.warn(`[webtray:${this.cfg.id}] restart failed: ${err}`);
+      if (err) console.warn(`[webroost:${this.cfg.id}] restart failed: ${err}`);
       app.exit(0);
     });
   }
@@ -664,7 +664,7 @@ export class AppRuntime {
       this.update = u;
       this.refreshMenu();
       this.notifications.notify(
-        `PWA Pop ${u.latest} is available`,
+        `WebRoost ${u.latest} is available`,
         u.canInstall ? 'Click to install the update.' : u.kind === 'flatpak'
           ? 'It will arrive through Discover / flatpak update.' : 'Click to see what is new.',
         () => this.openManager(),
@@ -685,7 +685,7 @@ export class AppRuntime {
     // Service-worker notifications (new Outlook, Teams…) — see preload/sw-preload.ts.
     ses.registerPreloadScript({
       type: 'service-worker',
-      id: 'webtray-sw-notifications',
+      id: 'webroost-sw-notifications',
       filePath: path.join(__dirname, 'preload', 'sw-preload.js'),
     });
     const attachWorker = (versionId: number) => {
@@ -702,7 +702,7 @@ export class AppRuntime {
     ses.setPermissionRequestHandler((wc, permission, callback, details) => {
       const url = details.requestingUrl || wc.getURL();
       const ok = this.matcher.matches(url) && this.granted().has(permission);
-      if (!ok) console.warn(`[webtray:${this.cfg.id}] denied permission "${permission}" for ${url}`);
+      if (!ok) console.warn(`[webroost:${this.cfg.id}] denied permission "${permission}" for ${url}`);
       callback(ok);
     });
     ses.setPermissionCheckHandler((_wc, permission, origin, details) => {
@@ -846,7 +846,7 @@ export class AppRuntime {
     wc.on('did-finish-load', () => { if (this.state.data.zoom) wc.setZoomFactor(this.state.data.zoom); });
     wc.on('render-process-gone', (_e, details) => {
       if (details.reason === 'clean-exit') return;
-      console.warn(`[webtray:${this.cfg.id}] renderer gone (${details.reason}); reloading`);
+      console.warn(`[webroost:${this.cfg.id}] renderer gone (${details.reason}); reloading`);
       setTimeout(() => { if (!win.isDestroyed()) wc.reload(); }, 2000);
     });
     // Use the site's own icon once we are past any sign-in page.
@@ -925,7 +925,7 @@ export class AppRuntime {
     // Server-side redirects (SSO hops) are allowed to finish in-app; log the
     // ones that leave the allow-list to help users tune allowed_origins.
     wc.on('will-redirect', (e) => {
-      if (!this.matcher.matches(e.url)) console.warn(`[webtray:${this.cfg.id}] redirect outside allowed_origins: ${e.url}`);
+      if (!this.matcher.matches(e.url)) console.warn(`[webroost:${this.cfg.id}] redirect outside allowed_origins: ${e.url}`);
     });
 
     wc.on('context-menu', (_e, p) => this.contextMenu(wc, p));
@@ -959,7 +959,7 @@ export class AppRuntime {
 
   private openExternal(url: string) {
     if (!isSafeExternal(url)) return;
-    shell.openExternal(url).catch((e) => console.warn(`[webtray] openExternal failed for ${url}`, e));
+    shell.openExternal(url).catch((e) => console.warn(`[webroost] openExternal failed for ${url}`, e));
   }
 
   private contextMenu(wc: WebContents, p: Electron.ContextMenuParams) {
@@ -1133,7 +1133,7 @@ export class AppRuntime {
       { label: 'Reload', click: () => this.reload() },
       {
         label: 'Send test notification',
-        click: () => this.notifications.notify('Test notification', 'If you can read this, PWA Pop can show popups. Click to open the app.'),
+        click: () => this.notifications.notify('Test notification', 'If you can read this, WebRoost can show popups. Click to open the app.'),
       },
       { label: 'Save diagnostics…', click: () => void this.saveDiagnostics() },
       {
@@ -1144,7 +1144,7 @@ export class AppRuntime {
       ...(this.updatePending
         ? [{ label: `Restart to finish updating (${this.updatePending})`, click: () => this.restart() }] : []),
       ...(this.update?.available
-        ? [{ label: `Update PWA Pop to ${this.update.latest}…`, click: () => this.openManager() }] : []),
+        ? [{ label: `Update WebRoost to ${this.update.latest}…`, click: () => this.openManager() }] : []),
       { label: 'Manage apps…', click: () => this.openManager() },
       { type: 'separator' },
       { label: 'Quit', click: () => this.quit() },
@@ -1175,14 +1175,14 @@ export class AppRuntime {
       this.cfg = fresh;
       this.matcher = new OriginMatcher(fresh.allowed_origins);
     } catch (e) {
-      console.warn('[webtray] config reload failed, keeping previous config', e);
+      console.warn('[webroost] config reload failed, keeping previous config', e);
     }
     this.win.webContents.reload();
   }
 
   private openManager() {
     void spawnSelf(['--manager']).then((err) => {
-      if (err) this.notifications.notify('PWA Pop', `Could not open the manager: ${err}`);
+      if (err) this.notifications.notify('WebRoost', `Could not open the manager: ${err}`);
     });
   }
 

@@ -55,7 +55,7 @@ export class StateStore {
       fs.writeFileSync(this.file + '.tmp', JSON.stringify(this.data, null, 2));
       fs.renameSync(this.file + '.tmp', this.file);
     } catch (e) {
-      console.warn('[webtray] could not save window state', e);
+      console.warn('[webroost] could not save window state', e);
     }
   }
 }

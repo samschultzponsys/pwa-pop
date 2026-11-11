@@ -124,14 +124,14 @@ jobs:
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           cd flatpak
           flatpak-builder --user --install-deps-from=flathub --force-clean $GPG_ARGS \
-            --default-branch=stable --repo=repo build-dir io.github.samschultzponsys.PwaPop.yml
-          flatpak build-update-repo $GPG_ARGS --title="PWA Pop" --default-branch=stable --prune repo
+            --default-branch=stable --repo=repo build-dir io.github.samschultzponsys.WebRoost.yml
+          flatpak build-update-repo $GPG_ARGS --title="WebRoost" --default-branch=stable --prune repo
           BUNDLE_KEYS=""; [ -n "$PUBKEY" ] && BUNDLE_KEYS="--gpg-keys=$PUBKEY"
           # --repo-url makes bundle installs track the repository, so Discover /
           # flatpak update pick up new versions.
           flatpak build-bundle $GPG_ARGS $BUNDLE_KEYS --repo-url="$REPO_URL" \
             --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
-            repo "../release/pwa-pop-$V-x86_64.flatpak" io.github.samschultzponsys.PwaPop stable
+            repo "../release/webroost-$V-x86_64.flatpak" io.github.samschultzponsys.WebRoost stable
 
           # GitHub Pages site: the OSTree repository + .flatpakrepo/.flatpakref files.
           SITE=../site; mkdir -p $SITE
@@ -139,10 +139,10 @@ jobs:
           rm -rf $SITE/repo/tmp $SITE/repo/.lock
           cp ../assets/icons/128x128.png $SITE/icon.png
           GPGLINE=""; [ -n "$PUBKEY" ] && GPGLINE="GPGKey=$(base64 -w0 "$PUBKEY")"
-          printf '[Flatpak Repo]\nTitle=PWA Pop\nUrl=%s\nHomepage=https://github.com/%s\nComment=Web apps that live in your tray\nIcon=%sicon.png\nDefaultBranch=stable\n%s\n' \
-            "$REPO_URL" "${{ github.repository }}" "${REPO_URL%repo/}" "$GPGLINE" > $SITE/pwa-pop.flatpakrepo
-          printf '[Flatpak Ref]\nTitle=PWA Pop\nName=io.github.samschultzponsys.PwaPop\nBranch=stable\nUrl=%s\nSuggestRemoteName=pwa-pop\nHomepage=https://github.com/%s\nIcon=%sicon.png\nRuntimeRepo=https://dl.flathub.org/repo/flathub.flatpakrepo\nIsRuntime=false\n%s\n' \
-            "$REPO_URL" "${{ github.repository }}" "${REPO_URL%repo/}" "$GPGLINE" > $SITE/pwa-pop.flatpakref
+          printf '[Flatpak Repo]\nTitle=WebRoost\nUrl=%s\nHomepage=https://github.com/%s\nComment=Web apps that live in your tray\nIcon=%sicon.png\nDefaultBranch=stable\n%s\n' \
+            "$REPO_URL" "${{ github.repository }}" "${REPO_URL%repo/}" "$GPGLINE" > $SITE/webroost.flatpakrepo
+          printf '[Flatpak Ref]\nTitle=WebRoost\nName=io.github.samschultzponsys.WebRoost\nBranch=stable\nUrl=%s\nSuggestRemoteName=webroost\nHomepage=https://github.com/%s\nIcon=%sicon.png\nRuntimeRepo=https://dl.flathub.org/repo/flathub.flatpakrepo\nIsRuntime=false\n%s\n' \
+            "$REPO_URL" "${{ github.repository }}" "${REPO_URL%repo/}" "$GPGLINE" > $SITE/webroost.flatpakref
           sed "s|@VERSION@|$V|g" site-index.html > $SITE/index.html
           touch $SITE/.nojekyll
           # Only publish when GitHub Pages is switched on (Settings -> Pages ->
@@ -156,7 +156,7 @@ jobs:
       - name: Checksums
         run: |
           cd release
-          sha256sum pwa-pop-${{ steps.ver.outputs.version }}-* > SHA256SUMS.txt
+          sha256sum webroost-${{ steps.ver.outputs.version }}-* > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Upload Flatpak repository for GitHub Pages
@@ -168,9 +168,9 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: pwa-pop-${{ steps.ver.outputs.version }}
+          name: webroost-${{ steps.ver.outputs.version }}
           path: |
-            release/pwa-pop-*
+            release/webroost-*
             release/SHA256SUMS.txt
           if-no-files-found: error
           # The release job publishes these within minutes; the GitHub release
@@ -206,7 +206,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: pwa-pop-${{ env.V }}
+          name: webroost-${{ env.V }}
           path: dist
           run-id: ${{ env.RUN }}
           github-token: ${{ github.token }}
@@ -216,7 +216,7 @@ jobs:
           ls -la dist
           # Every release carries every distro's package.
           for f in x86_64.rpm amd64.deb x64.pacman x86_64.AppImage x64.tar.gz x86_64.flatpak; do
-            test -f "dist/pwa-pop-$V-$f" || { echo "::error::pwa-pop-$V-$f is missing; not publishing an incomplete release"; exit 1; }
+            test -f "dist/webroost-$V-$f" || { echo "::error::webroost-$V-$f is missing; not publishing an incomplete release"; exit 1; }
           done
           test -f dist/SHA256SUMS.txt
 
@@ -233,12 +233,12 @@ jobs:
             echo "### Downloads"
             echo "| Distro | File |"
             echo "|---|---|"
-            echo "| Fedora / RHEL / openSUSE | \`pwa-pop-$V-x86_64.rpm\` |"
-            echo "| Debian / Ubuntu / Mint | \`pwa-pop-$V-amd64.deb\` |"
-            echo "| Arch / Manjaro | \`pwa-pop-$V-x64.pacman\` |"
-            echo "| Any distro (portable) | \`pwa-pop-$V-x86_64.AppImage\` |"
-            echo "| Any distro (sandboxed) | \`pwa-pop-$V-x86_64.flatpak\`, or with auto-updates: \`flatpak install --user https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/pwa-pop.flatpakref\` |"
-            echo "| Manual install | \`pwa-pop-$V-x64.tar.gz\` |"
+            echo "| Fedora / RHEL / openSUSE | \`webroost-$V-x86_64.rpm\` |"
+            echo "| Debian / Ubuntu / Mint | \`webroost-$V-amd64.deb\` |"
+            echo "| Arch / Manjaro | \`webroost-$V-x64.pacman\` |"
+            echo "| Any distro (portable) | \`webroost-$V-x86_64.AppImage\` |"
+            echo "| Any distro (sandboxed) | \`webroost-$V-x86_64.flatpak\`, or with auto-updates: \`flatpak install --user https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/webroost.flatpakref\` |"
+            echo "| Manual install | \`webroost-$V-x64.tar.gz\` |"
           } >> release-notes.md
           cat release-notes.md
 
@@ -261,7 +261,7 @@ jobs:
             echo "Release v$V exists; uploading any missing files."
             gh release upload "v$V" dist/* --clobber
           else
-            gh release create "v$V" dist/* --verify-tag --title "PWA Pop $V" --notes-file release-notes.md
+            gh release create "v$V" dist/* --verify-tag --title "WebRoost $V" --notes-file release-notes.md
           fi
           gh release view "v$V"
 
@@ -276,7 +276,7 @@ jobs:
           KEEP_RUNS: '10'
         run: scripts/prune-releases.sh || echo "::warning::Pruning old releases failed"
 
-  # Publishes the Flatpak repository to https://<owner>.github.io/pwa-pop/.
+  # Publishes the Flatpak repository to https://<owner>.github.io/webroost/.
   # One-time setup: repository Settings -> Pages -> Source: "GitHub Actions".
   pages:
     needs: [build, release]

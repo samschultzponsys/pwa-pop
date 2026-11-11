@@ -6,7 +6,7 @@
  *   AppImage            download, verify SHA-256, replace the AppImage file
  *   rpm / deb / pacman  download, verify SHA-256, install with pkexec + dnf/apt/pacman
  *   Flatpak             handled by Flatpak itself (Discover / `flatpak update`)
- *                       from the PWA Pop Flatpak repository on GitHub Pages
+ *                       from the WebRoost Flatpak repository on GitHub Pages
  *   tar.gz / source     notify only, with a link to the release
  */
 import * as crypto from 'crypto';
@@ -17,7 +17,7 @@ import { execFile, spawn } from 'child_process';
 import { app, net } from 'electron';
 import { ensureDir, flatpakBranch, IN_FLATPAK, releaseVersion, STATE_DIR } from './paths';
 
-export const REPO = 'samschultzponsys/pwa-pop';
+export const REPO = 'samschultzponsys/webroost';
 const CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const STATE_FILE = path.join(STATE_DIR, '_updates.json');
 
@@ -88,10 +88,10 @@ export async function installKind(): Promise<InstallKind> {
 
 function assetName(kind: InstallKind, v: string): string | null {
   switch (kind) {
-    case 'appimage': return `pwa-pop-${v}-x86_64.AppImage`;
-    case 'rpm': return `pwa-pop-${v}-x86_64.rpm`;
-    case 'deb': return `pwa-pop-${v}-amd64.deb`;
-    case 'pacman': return `pwa-pop-${v}-x64.pacman`;
+    case 'appimage': return `webroost-${v}-x86_64.AppImage`;
+    case 'rpm': return `webroost-${v}-x86_64.rpm`;
+    case 'deb': return `webroost-${v}-amd64.deb`;
+    case 'pacman': return `webroost-${v}-x64.pacman`;
     default: return null;
   }
 }
@@ -155,7 +155,7 @@ export function setAutoCheck(on: boolean) { const s = readState(); s.autoCheck =
 
 /**
  * Check in the background and call `notify` once per new version across all
- * webtray processes (the version is recorded in the shared state file).
+ * webroost processes (the version is recorded in the shared state file).
  */
 export async function backgroundCheck(notify: (u: UpdateInfo) => void): Promise<void> {
   if (!autoCheckEnabled() || !app.isPackaged) return;
@@ -233,12 +233,12 @@ export async function installUpdate(onProgress?: (p: number) => void): Promise<s
   const kind = await installKind();
   const s = readState();
   const u = info(s, kind);
-  if (!u.available || !u.latest) return 'PWA Pop is up to date.';
+  if (!u.available || !u.latest) return 'WebRoost is up to date.';
   const name = assetName(kind, u.latest);
   const url = name ? s.assets?.[name] : undefined;
   if (!name || !url) throw new Error('this kind of install cannot update itself; download the new version from the release page');
 
-  const dir = path.join(os.homedir(), '.cache', 'webtray', 'updates');
+  const dir = path.join(os.homedir(), '.cache', 'webroost', 'updates');
   ensureDir(dir);
   const file = path.join(dir, name);
   await download(url, file + '.part', onProgress);
@@ -260,13 +260,13 @@ export async function installUpdate(onProgress?: (p: number) => void): Promise<s
     await pkexecInstall(kind, file);
   }
   fs.rmSync(file, { force: true });
-  return `PWA Pop ${u.latest} is installed. Running apps switch to it when you restart them (Quit from the tray, then open them again).`;
+  return `WebRoost ${u.latest} is installed. Running apps switch to it when you restart them (Quit from the tray, then open them again).`;
 }
 
 // ---------------------------------------------------------------- guidance
 
-export const FLATPAK_ID = 'io.github.samschultzponsys.PwaPop';
-export const PAGES_URL = 'https://samschultzponsys.github.io/pwa-pop/';
+export const FLATPAK_ID = 'io.github.samschultzponsys.WebRoost';
+export const PAGES_URL = 'https://samschultzponsys.github.io/webroost/';
 
 export interface GuideStep { text: string; command?: string; download?: boolean }
 export interface UpdateGuide {
@@ -281,7 +281,7 @@ export interface UpdateGuide {
 }
 
 let repoOnlineCache: { at: number; online: boolean } | null = null;
-/** Is the PWA Pop Flatpak repository on GitHub Pages reachable? */
+/** Is the WebRoost Flatpak repository on GitHub Pages reachable? */
 async function flatpakRepoOnline(): Promise<boolean> {
   if (repoOnlineCache && Date.now() - repoOnlineCache.at < 10 * 60 * 1000) return repoOnlineCache.online;
   let online = false;
@@ -300,8 +300,8 @@ async function flatpakRepoOnline(): Promise<boolean> {
 /** Exact release file name for an install kind and version. */
 export function packageFile(kind: InstallKind, v: string): string | null {
   switch (kind) {
-    case 'flatpak': return `pwa-pop-${v}-x86_64.flatpak`;
-    case 'manual': return `pwa-pop-${v}-x64.tar.gz`;
+    case 'flatpak': return `webroost-${v}-x86_64.flatpak`;
+    case 'manual': return `webroost-${v}-x64.tar.gz`;
     default: return assetName(kind, v);
   }
 }
@@ -321,15 +321,15 @@ export function curlCommand(kind: InstallKind, v: string, opts: { rpmTool?: stri
     case 'rpm': {
       const t = opts.rpmTool ?? 'dnf';
       const inst = t === 'dnf' ? `sudo dnf install ./${name}` : t === 'zypper' ? `sudo zypper install ./${name}` : `sudo rpm -U ./${name}`;
-      return `cd /tmp && ${fetch} && ${inst} && webtray --restart-all`;
+      return `cd /tmp && ${fetch} && ${inst} && webroost --restart-all`;
     }
-    case 'deb': return `cd /tmp && ${fetch} && sudo apt install ./${name} && webtray --restart-all`;
-    case 'pacman': return `cd /tmp && ${fetch} && sudo pacman -U ./${name} && webtray --restart-all`;
+    case 'deb': return `cd /tmp && ${fetch} && sudo apt install ./${name} && webroost --restart-all`;
+    case 'pacman': return `cd /tmp && ${fetch} && sudo pacman -U ./${name} && webroost --restart-all`;
     case 'appimage': {
-      const target = opts.appImage ?? '~/Applications/PWA-Pop.AppImage';
+      const target = opts.appImage ?? '~/Applications/WebRoost.AppImage';
       return `cd /tmp && ${fetch} && chmod +x ${name} && mv ${name} "${target}" && "${target}" --restart-all`;
     }
-    case 'manual': return `cd /tmp && ${fetch} && tar -xzf ${name} --strip-components=1 -C "${opts.dir ?? '.'}" && "${opts.dir ?? '.'}/webtray" --restart-all`;
+    case 'manual': return `cd /tmp && ${fetch} && tar -xzf ${name} --strip-components=1 -C "${opts.dir ?? '.'}" && "${opts.dir ?? '.'}/webroost" --restart-all`;
     default: return null;
   }
 }
@@ -341,7 +341,7 @@ export async function updateGuide(): Promise<UpdateGuide> {
   // The newest version we know of; never a placeholder.
   const v = st.latest && !isNewer(releaseVersion(), st.latest) ? st.latest : releaseVersion();
   const newer = isNewer(v, releaseVersion());
-  const what = newer ? `PWA Pop ${v}` : `PWA Pop ${v} again (you already have it)`;
+  const what = newer ? `WebRoost ${v}` : `WebRoost ${v} again (you already have it)`;
   const curlStep = (cmd: string | null): GuideStep[] => (cmd ? [{ text: `Download, verify and install ${what} in one go (paste into a terminal):`, command: cmd }] : []);
   switch (kind) {
     case 'flatpak': {
@@ -367,12 +367,12 @@ export async function updateGuide(): Promise<UpdateGuide> {
         );
       }
       if (!tracksRepo) {
-        steps.push({ text: 'Or install from the PWA Pop repository once, and Discover keeps it up to date from then on:', command: `flatpak install --user ${PAGES_URL}pwa-pop.flatpakref` });
+        steps.push({ text: 'Or install from the WebRoost repository once, and Discover keeps it up to date from then on:', command: `flatpak install --user ${PAGES_URL}webroost.flatpakref` });
       }
       return {
         kind, label: 'Flatpak',
         summary: tracksRepo
-          ? 'This Flatpak will update through Discover once the PWA Pop Flatpak repository is online. Until then, install new versions with the command below.'
+          ? 'This Flatpak will update through Discover once the WebRoost Flatpak repository is online. Until then, install new versions with the command below.'
           : 'This Flatpak was installed from a file that does not receive updates. Install new versions with the command below, or switch to the repository.',
         steps,
       };
@@ -389,31 +389,31 @@ export async function updateGuide(): Promise<UpdateGuide> {
     case 'rpm': {
       const tool = fs.existsSync('/usr/bin/dnf') ? 'dnf' : fs.existsSync('/usr/bin/zypper') ? 'zypper' : 'rpm';
       return {
-        kind, label: 'RPM package', where: '/opt/webtray',
+        kind, label: 'RPM package', where: '/opt/webroost',
         summary: 'Click "Install update" when one is available. It asks for your password, then updates the package.',
         steps: [
-          { text: 'Or from a terminal:', command: 'webtray --update' },
+          { text: 'Or from a terminal:', command: 'webroost --update' },
           ...curlStep(curlCommand(kind, v, { rpmTool: tool })),
         ],
       };
     }
     case 'deb':
       return {
-        kind, label: 'Debian package', where: '/opt/webtray',
+        kind, label: 'Debian package', where: '/opt/webroost',
         summary: 'Click "Install update" when one is available. It asks for your password, then updates the package.',
-        steps: [{ text: 'Or from a terminal:', command: 'webtray --update' }, ...curlStep(curlCommand(kind, v))],
+        steps: [{ text: 'Or from a terminal:', command: 'webroost --update' }, ...curlStep(curlCommand(kind, v))],
       };
     case 'pacman':
       return {
-        kind, label: 'Arch package', where: '/opt/webtray',
+        kind, label: 'Arch package', where: '/opt/webroost',
         summary: 'Click "Install update" when one is available. It asks for your password, then updates the package.',
-        steps: [{ text: 'Or from a terminal:', command: 'webtray --update' }, ...curlStep(curlCommand(kind, v))],
+        steps: [{ text: 'Or from a terminal:', command: 'webroost --update' }, ...curlStep(curlCommand(kind, v))],
       };
     case 'manual': {
       const dir = path.dirname(fs.realpathSync(process.execPath));
       return {
         kind, label: 'tar.gz archive', where: dir,
-        summary: 'This copy cannot update itself. Quit all PWA Pop apps, then run the command below to unpack the new version over this folder.',
+        summary: 'This copy cannot update itself. Quit all WebRoost apps, then run the command below to unpack the new version over this folder.',
         steps: curlStep(curlCommand(kind, v, { dir })),
       };
     }
@@ -430,9 +430,9 @@ export async function updateGuide(): Promise<UpdateGuide> {
 export async function downloadUpdate(onProgress?: (p: number) => void): Promise<string> {
   const kind = await installKind();
   const s = readState();
-  if (!s.latest || !isNewer(s.latest, releaseVersion())) throw new Error('PWA Pop is up to date.');
-  const name = kind === 'flatpak' ? `pwa-pop-${s.latest}-x86_64.flatpak`
-    : kind === 'manual' ? `pwa-pop-${s.latest}-x64.tar.gz` : assetName(kind, s.latest);
+  if (!s.latest || !isNewer(s.latest, releaseVersion())) throw new Error('WebRoost is up to date.');
+  const name = kind === 'flatpak' ? `webroost-${s.latest}-x86_64.flatpak`
+    : kind === 'manual' ? `webroost-${s.latest}-x64.tar.gz` : assetName(kind, s.latest);
   const url = name ? s.assets?.[name] : undefined;
   if (!name || !url) throw new Error('the release does not have a package for this install yet');
   const dir = path.join(os.homedir(), 'Downloads');

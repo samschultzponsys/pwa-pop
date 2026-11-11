@@ -29,7 +29,7 @@ ipcRenderer.on('wt:notify-event', (_e, id: number, type: string) => {
   for (const l of listeners) l(id, type);
 });
 
-contextBridge.exposeInMainWorld('__webtray', {
+contextBridge.exposeInMainWorld('__webroost', {
   show: (opts: unknown) => ipcRenderer.send('wt:notify', opts),
   close: (id: number) => ipcRenderer.send('wt:notify-close', id),
   onEvent: (cb: Listener) => { listeners.push(cb); },
@@ -38,18 +38,18 @@ contextBridge.exposeInMainWorld('__webtray', {
 
 function installShim(keepVisible: boolean): void {
   const w = window as any;
-  if (keepVisible && !w.__webtrayVisible) {
-    w.__webtrayVisible = true;
+  if (keepVisible && !w.__webroostVisible) {
+    w.__webroostVisible = true;
     try {
       Object.defineProperty(Document.prototype, 'visibilityState', { get: () => 'visible', configurable: true });
       Object.defineProperty(Document.prototype, 'hidden', { get: () => false, configurable: true });
       w.addEventListener('visibilitychange', (e: Event) => e.stopImmediatePropagation(), true);
     } catch { /* ignore */ }
   }
-  const bridge = w.__webtray;
+  const bridge = w.__webroost;
   const Real: any = w.Notification;
-  if (!bridge || !Real || w.__webtrayShim) return;
-  w.__webtrayShim = true;
+  if (!bridge || !Real || w.__webroostShim) return;
+  w.__webroostShim = true;
 
   let seq = 0;
   const live = new Map<number, any>();
@@ -163,5 +163,5 @@ function installShim(keepVisible: boolean): void {
 try {
   (contextBridge as any).executeInMainWorld({ func: installShim, args: [keepVisible] });
 } catch (e) {
-  console.warn('[webtray] notification shim unavailable', e);
+  console.warn('[webroost] notification shim unavailable', e);
 }

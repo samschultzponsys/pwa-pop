@@ -1,26 +1,26 @@
-# PWA Pop — manual test checklist
+# WebRoost — manual test checklist
 
 Run this on the target machine (Fedora 44, KDE Plasma 6, Wayland) before
-announcing a release. Note the version under test: `webtray --version`.
+announcing a release. Note the version under test: `webroost --version`.
 
-Setup: install the rpm (`sudo dnf install ./pwa-pop-<ver>-x86_64.rpm`), copy
-`examples/apps.yaml` to `~/.config/webtray/apps.yaml`, replace the PBX host,
-then run `webtray --install linkus`, `webtray --install outlook` and
-`webtray --install claude`.
+Setup: install the rpm (`sudo dnf install ./webroost-<ver>-x86_64.rpm`), copy
+`examples/apps.yaml` to `~/.config/webroost/apps.yaml`, replace the PBX host,
+then run `webroost --install linkus`, `webroost --install outlook` and
+`webroost --install claude`.
 
-Tip: start an app from a terminal with `WEBTRAY_DEBUG=1 webtray --app <id>` to
+Tip: start an app from a terminal with `WEBROOST_DEBUG=1 webroost --app <id>` to
 see show/hide events, denied permissions and redirects that leave
 `allowed_origins`.
 
 ## 1. Tray toggle
-- [ ] `webtray --app claude` shows the window and a Claude tray icon (not a generic one).
+- [ ] `webroost --app claude` shows the window and a Claude tray icon (not a generic one).
 - [ ] Left-click the tray icon: the window hides. Click again: it comes back, focused.
 - [ ] Minimise the window, then click the tray icon: it is restored.
 - [ ] Right-click the tray icon: the menu shows *Hide Claude / Reload / Mute notifications / Manage apps… / Quit*.
-- [ ] The window close button hides it to the tray (the process keeps running: `pgrep -fa "webtray --app claude"`).
+- [ ] The window close button hides it to the tray (the process keeps running: `pgrep -fa "webroost --app claude"`).
 - [ ] Ctrl+W hides; Ctrl+Q does **not** quit.
 - [ ] *Quit* from the tray menu exits the process.
-- [ ] Run `webtray --app claude` while it is running: the existing window appears; no second tray icon.
+- [ ] Run `webroost --app claude` while it is running: the existing window appears; no second tray icon.
 - [ ] Resize and move the window, quit and restart: the size (and position on X11) is restored.
 - [ ] Quit and restart: still logged in.
 
@@ -48,7 +48,7 @@ see show/hide events, denied permissions and redirects that leave
 - [ ] Unplug and replug the headset (or power-cycle the dongle): it reconnects.
 
 ## 5. Microsoft 365 login
-- [ ] Clear the profile (`rm -rf ~/.config/webtray/profiles/outlook`) and start Outlook.
+- [ ] Clear the profile (`rm -rf ~/.config/webroost/profiles/outlook`) and start Outlook.
 - [ ] The Microsoft sign-in (login.microsoftonline.com) stays inside the app window, MFA included.
 - [ ] If your tenant uses ADFS/Okta: add its origin to `allowed_origins`. Sign-in must not open the browser.
 - [ ] "Stay signed in?" → Yes. Quit and restart: still signed in.
@@ -62,17 +62,17 @@ see show/hide events, denied permissions and redirects that leave
 - [ ] Download an attachment: it lands in ~/Downloads, and a notification opens the folder.
 
 ## 7. Autostart
-- [ ] `ls ~/.config/autostart/` shows `webtray-linkus.desktop` and `webtray-outlook.desktop` (apps with `autostart: true`).
+- [ ] `ls ~/.config/autostart/` shows `webroost-linkus.desktop` and `webroost-outlook.desktop` (apps with `autostart: true`).
 - [ ] Log out and back in: Linkus and Outlook start hidden, with tray icons only.
 - [ ] In the manager, turn off autostart for Outlook: the autostart file is removed. Log in again: Outlook doesn't start.
-- [ ] `webtray --uninstall outlook` removes both the menu and autostart entries.
+- [ ] `webroost --uninstall outlook` removes both the menu and autostart entries.
 
 ## 8. Manager UI & adding apps
-- [ ] Launch *PWA Pop* from the app menu. The manager lists the configured apps with icons.
+- [ ] Launch *WebRoost* from the app menu. The manager lists the configured apps with icons.
 - [ ] *+ Add app* → paste `https://claude.ai` → *Fetch details*: name, icon and origins fill in.
 - [ ] Save with "Add to the application menu": the app appears in the KDE menu with its icon.
 - [ ] Linkus *Edit* → *Headset / HID devices* → *Detect connected devices*: the WH64 is listed; *Any from vendor* adds `vendorId 0x6993`.
-- [ ] Changes are written to `~/.config/webtray/apps.yaml`, and its comments are kept.
+- [ ] Changes are written to `~/.config/webroost/apps.yaml`, and its comments are kept.
 
 ## 9. Duplicates, icons and service-worker notifications
 - [ ] Manager → **Duplicate** on Claude: the form shows `claude-2`, "Claude (2)", a colour and label "2". Save, open it, and sign in with a second account. The first Claude stays signed in to the first account.
@@ -82,7 +82,7 @@ see show/hide events, denied permissions and redirects that leave
 - [ ] Unread badge at tray size is readable (digit or "9+") and doesn't hide the icon.
 
 ## 10. Packaging
-- [ ] `rpm -ql pwa-pop | grep -E '^/opt/webtray/webtray$|^/usr/lib/udev'` and `/usr/bin/webtray` exist.
-- [ ] `sudo dnf remove pwa-pop` removes `/usr/bin/webtray` and the udev rule. `~/.config/webtray` is untouched.
-- [ ] The AppImage runs (`chmod +x` it, then `./pwa-pop-<ver>-x86_64.AppImage`) and `--install` writes `Exec=` pointing at the AppImage.
-- [ ] Flatpak: `flatpak install --user ./pwa-pop-<ver>-x86_64.flatpak`, then repeat sections 1, 2 and 4.
+- [ ] `rpm -ql webroost | grep -E '^/opt/webroost/webroost$|^/usr/lib/udev'` and `/usr/bin/webroost` exist.
+- [ ] `sudo dnf remove webroost` removes `/usr/bin/webroost` and the udev rule. `~/.config/webroost` is untouched.
+- [ ] The AppImage runs (`chmod +x` it, then `./webroost-<ver>-x86_64.AppImage`) and `--install` writes `Exec=` pointing at the AppImage.
+- [ ] Flatpak: `flatpak install --user ./webroost-<ver>-x86_64.flatpak`, then repeat sections 1, 2 and 4.

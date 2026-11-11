@@ -3,19 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'">
-  <title>PWA Pop</title>
+  <title>WebRoost</title>
   <link rel="stylesheet" href="manager.css">
 </head>
 <body>
   <header class="top">
     <img src="../assets/icon.svg" alt="" class="logo">
     <div class="brand">
-      <h1>PWA Pop</h1>
-      <p>Web apps that live in your tray</p>
+      <h1>WebRoost</h1>
+      <p>Any website, roosting in your tray</p>
     </div>
     <div class="spacer"></div>
     <button id="btn-memory" class="ghost" title="Memory use per app">Memory</button>
-    <button id="btn-import" class="ghost" title="Add apps from a PWA Pop export file">Import…</button>
+    <button id="btn-import" class="ghost" title="Add apps from a WebRoost export file">Import…</button>
     <button id="btn-export" class="ghost" title="Save all apps and their icons to one file, to set up another computer">Export…</button>
     <button id="btn-config" class="ghost" title="Open apps.yaml in your editor">Edit apps.yaml</button>
     <button id="btn-add" class="primary">+ Add app</button>
@@ -35,7 +35,7 @@
     <section id="empty" class="empty hidden">
       <img src="../assets/icon.svg" alt="">
       <h2>No apps yet</h2>
-      <p>Paste the address of any web app (Outlook, Claude, your PBX…) and PWA Pop turns it into a tray app.</p>
+      <p>Paste the address of any web app (Outlook, Claude, your PBX…) and WebRoost turns it into a tray app.</p>
       <button class="primary" data-action="add">Add your first app</button>
       <p>Moving from another computer? <button class="link" data-action="import">Import an export file</button></p>
     </section>
@@ -52,7 +52,7 @@
     <span class="spacer"></span>
     <label class="check small"><input type="checkbox" id="f-autoupdate"> Check for updates automatically</label>
     <button id="btn-check-update" class="link">Check now</button>
-    <button id="btn-manager-entry" class="link hidden">Add PWA Pop to the app menu</button>
+    <button id="btn-manager-entry" class="link hidden">Add WebRoost to the app menu</button>
   </footer>
 
   <dialog id="memory">
@@ -75,11 +75,11 @@
 
   <dialog id="guide">
     <form method="dialog" class="guide">
-      <h2>Updating PWA Pop</h2>
+      <h2>Updating WebRoost</h2>
       <p><strong>Installed as:</strong> <span id="guide-kind"></span> <span id="guide-where" class="muted"></span></p>
       <p id="guide-summary"></p>
       <div id="guide-steps" class="guide-steps"></div>
-      <p class="hint">Your apps, logins and settings live in <code>~/.config/webtray</code> and are kept when you update.</p>
+      <p class="hint">Your apps, logins and settings live in <code>~/.config/webroost</code> and are kept when you update.</p>
       <div class="actions">
         <button type="button" id="btn-guide-releases" class="ghost">Open release page</button>
         <button type="submit" class="primary">Close</button>
@@ -109,7 +109,7 @@
         </div>
         <div class="grow fields">
           <label>Name <input id="f-name" type="text" required></label>
-          <label>ID <span class="muted">(used for <code>webtray --app &lt;id&gt;</code>)</span>
+          <label>ID <span class="muted">(used for <code>webroost --app &lt;id&gt;</code>)</span>
             <input id="f-id" type="text" required pattern="[a-z0-9][a-z0-9_\-]*" spellcheck="false">
           </label>
         </div>

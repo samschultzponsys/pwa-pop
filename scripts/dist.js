@@ -5,6 +5,6 @@ const { spawnSync } = require('child_process');
 const { release } = require('./version');
 const targets = process.argv.slice(2);
 const args = ['electron-builder', '--linux', ...targets, '--x64', '--publish', 'never'];
-console.log(`Building PWA Pop ${release}: ${targets.join(', ') || 'all targets'}`);
+console.log(`Building WebRoost ${release}: ${targets.join(', ') || 'all targets'}`);
 const r = spawnSync('npx', args, { stdio: 'inherit', env: { ...process.env, RELEASE_VERSION: release } });
 process.exit(r.status ?? 1);

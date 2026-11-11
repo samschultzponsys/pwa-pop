@@ -1,11 +1,11 @@
 [Desktop Entry]
 Type=Application
-Name=PWA Pop
+Name=WebRoost
 GenericName=Web App Manager
 Comment=Turn web apps into tray-resident desktop apps
-Exec=webtray
-Icon=io.github.samschultzponsys.PwaPop
+Exec=webroost
+Icon=io.github.samschultzponsys.WebRoost
 Terminal=false
 Categories=Network;Utility;
 Keywords=pwa;web;app;tray;outlook;softphone;
-StartupWMClass=webtray
+StartupWMClass=webroost

@@ -1,15 +1,15 @@
-# ~/.config/webtray/apps.yaml — example configuration for PWA Pop (webtray)
+# ~/.config/webroost/apps.yaml — example configuration for WebRoost (webroost)
 #
 # Every entry becomes its own desktop app with a tray icon:
-#   webtray --app <id>          run it
-#   webtray --install <id>      add it to the app menu (+ autostart)
+#   webroost --app <id>          run it
+#   webroost --install <id>      add it to the app menu (+ autostart)
 #
 # Options (all optional except id + url):
 #   name                  Display name (menu, tray tooltip, notifications)
 #   url                   Start page
-#   icon                  PNG/SVG path; default: ~/.config/webtray/icons/<id>.png, else the site favicon
+#   icon                  PNG/SVG path; default: ~/.config/webroost/icons/<id>.png, else the site favicon
 #   start_hidden          Start in the tray without showing the window
-#   autostart             --install also creates ~/.config/autostart/webtray-<id>.desktop
+#   autostart             --install also creates ~/.config/autostart/webroost-<id>.desktop
 #   allowed_origins       Origins that stay in-app and get mic/camera/notifications/clipboard.
 #                         Default: the origin of url. "https://*.example.com" matches subdomains.
 #   hid_devices           WebHID devices to auto-select, e.g. [{ vendorId: 0x6993 }] or
@@ -26,7 +26,7 @@
 - id: linkus
   name: Linkus
   url: https://pbx.example.com/
-  icon: ~/.config/webtray/icons/linkus.png
+  icon: ~/.config/webroost/icons/linkus.png
   start_hidden: true
   autostart: true
   allowed_origins: ["https://pbx.example.com"]

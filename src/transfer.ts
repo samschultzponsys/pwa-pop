@@ -9,10 +9,12 @@ import * as path from 'path';
 import { AppConfig, ID_RE, loadApps, resolveApp, upsertApp } from './config';
 import { ensureDir, ICON_DIR, releaseVersion } from './paths';
 
-export const EXPORT_FORMAT = 'pwa-pop-export';
+export const EXPORT_FORMAT = 'webroost-export';
+/** Files exported before the rename (PWA Pop). */
+const LEGACY_FORMATS = ['pwa-pop-export'];
 
 export interface ExportFile {
-  format: typeof EXPORT_FORMAT;
+  format: string;
   version: 1;
   exported_by: string;
   exported_at: string;
@@ -37,15 +39,15 @@ export function buildExport(ids?: string[]): ExportFile {
     out.push(copy);
   }
   return {
-    format: EXPORT_FORMAT, version: 1, exported_by: `PWA Pop ${releaseVersion()}`,
+    format: EXPORT_FORMAT, version: 1, exported_by: `WebRoost ${releaseVersion()}`,
     exported_at: new Date().toISOString(), apps: out, icons,
   };
 }
 
 export function parseExport(text: string): ExportFile {
   let data: any;
-  try { data = JSON.parse(text); } catch { throw new Error('This is not a PWA Pop export file.'); }
-  if (!data || data.format !== EXPORT_FORMAT || !Array.isArray(data.apps)) throw new Error('This is not a PWA Pop export file.');
+  try { data = JSON.parse(text); } catch { throw new Error('This is not a WebRoost export file.'); }
+  if (!data || (data.format !== EXPORT_FORMAT && !LEGACY_FORMATS.includes(data.format)) || !Array.isArray(data.apps)) throw new Error('This is not a WebRoost export file.');
   for (const a of data.apps) {
     let urlOk = false;
     try { urlOk = /^https?:$/.test(new URL(String(a?.url)).protocol); } catch { /* invalid */ }

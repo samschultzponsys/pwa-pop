@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 const call = (ch: string) => (...args: unknown[]) => ipcRenderer.invoke(ch, ...args);
 
-contextBridge.exposeInMainWorld('webtray', {
+contextBridge.exposeInMainWorld('webroost', {
   list: call('apps:list'),
   memory: call('apps:memory'),
   inspect: call('apps:inspect'),
