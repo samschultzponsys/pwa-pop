@@ -41,7 +41,8 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [4.0] - 2026-11-11
 
-Rolls over from 3.9 under the MAJOR.MINOR scheme.
+Rolls over from 3.9 under the MAJOR.MINOR scheme. Never published: the release
+could not be tagged after 4.1 was pushed during its build. Its changes ship in 4.1.
 
 ### Added
 - **Memory view** in the manager (header button, or click an app's RAM
