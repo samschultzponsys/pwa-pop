@@ -84,9 +84,19 @@ jobs:
           fi
 
       - name: Install packaging tools
+        # Ubuntu's mirrors occasionally fail or hang on GitHub's runners: retry
+        # with short timeouts instead of hanging the whole release.
+        timeout-minutes: 12
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends rpm libarchive-tools flatpak flatpak-builder elfutils
+          APT="-o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30"
+          for attempt in 1 2 3; do
+            if sudo apt-get $APT update && sudo apt-get $APT install -y --no-install-recommends rpm libarchive-tools flatpak flatpak-builder elfutils; then
+              exit 0
+            fi
+            echo "::warning::apt failed (attempt $attempt), retrying in 30 s"
+            sleep 30
+          done
+          exit 1
 
       - run: npm ci
       - run: npm test
