@@ -9,6 +9,20 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [5.0] - 2026-11-11
+
+Rolls over from 4.9 under the MAJOR.MINOR scheme.
+
+### Fixed
+- **New-mail popups were often plain "New message", or skipped entirely
+  with *Only pop up when the new message can be shown*.** The unread check
+  recorded the newest message in the list *before* noticing the count had
+  gone up, so the new email looked already seen. Each message now remembers
+  when it first appeared at the top of the list. When the count goes up, a
+  message that appeared within 30 seconds of it (before or after) and hasn't
+  had a popup yet is the new one. Messages already there at start-up never
+  count.
+
 ## [4.9] - 2026-11-11
 
 ### Fixed

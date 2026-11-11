@@ -449,8 +449,24 @@ export class AppRuntime {
   private counts: Partial<Record<UnreadSource, number>> = {};
   private lastUnreadNotify = 0;
   /** Newest unread message seen in the list, so a popup never shows an older one. */
-  private lastTopUnread = '';
-  private notifyingUnread = false;
+  /**
+   * When each message was first seen at the top of the unread list (ms; 0 =
+   * already there when the app started), and the last one a popup was shown
+   * for. A count going up is matched with a message that appeared around the
+   * same time, whichever of the two the page updates first.
+   */
+  private topSeen = new Map<string, number>();
+  private notifiedTop = '';
+
+  private noteTop(lines: string[]): string {
+    const key = lines.join('|');
+    if (key && !this.topSeen.has(key)) {
+      // Messages seen in the first half minute were already there: baseline.
+      this.topSeen.set(key, Date.now() - this.startedAt < 30_000 ? 0 : Date.now());
+      if (this.topSeen.size > 100) this.topSeen.delete(this.topSeen.keys().next().value!);
+    }
+    return key;
+  }
   private titleHadCount = false;
   private unreadWatcher: NodeJS.Timeout | null = null;
   private domMissLogged = false;
@@ -507,10 +523,7 @@ export class AppRuntime {
         const r: { folder: number; rows: number; probe: unknown } =
           await this.win.webContents.executeJavaScript(UNREAD_PROBE, true);
         this.lastProbe = r.probe;
-        if (!this.notifyingUnread) {
-          const top = await this.topUnread();
-          if (top.length) this.lastTopUnread = top.join('|');
-        }
+        this.noteTop(await this.topUnread());
         if (r.folder >= 0) this.reportUnread('folder', r.folder);
         if (r.rows >= 0) this.reportUnread('rows', r.rows);
         if (r.folder < 0 && r.rows < 0 && !this.domMissLogged) {
@@ -582,19 +595,17 @@ export class AppRuntime {
     // The count often moves a few seconds before the new message is drawn in
     // the list, and with many unread mails the first unread row may still be
     // an older one. Wait for a newer top unread row, up to ~10 s.
-    this.notifyingUnread = true;
-    const before = this.lastTopUnread;
+    const riseAt = Date.now();
     let lines: string[] = [];
-    try {
-      for (const wait of [0, 2000, 3000, 5000]) {
-        if (wait) await new Promise((r) => setTimeout(r, wait));
-        const top = await this.topUnread();
-        if (top.length && top.join('|') !== before) { lines = top; break; }
-      }
-    } finally {
-      this.notifyingUnread = false;
+    for (const wait of [0, 2000, 3000, 5000]) {
+      if (wait) await new Promise((r) => setTimeout(r, wait));
+      const top = await this.topUnread();
+      const key = this.noteTop(top);
+      // New = not popped up yet, and first seen no earlier than 30 s before
+      // the count went up (the list and the count update in either order).
+      if (key && key !== this.notifiedTop && (this.topSeen.get(key) ?? 0) >= riseAt - 30_000) { lines = top; break; }
     }
-    if (lines.length) this.lastTopUnread = lines.join('|');
+    if (lines.length) this.notifiedTop = lines.join('|');
     else if (this.cfg.notify_only_with_message) { debug('  new message not found in the list: no popup (notify_only_with_message)'); return; }
     else debug('  new message not found in the list; showing a plain popup');
     const many = added > 1 ? ` (+${added - 1} more)` : '';

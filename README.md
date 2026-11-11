@@ -12,7 +12,7 @@ desktop app: own window, tray icon, login, notifications, unread badge, autostar
   <a href="#install">Install</a> ·
   <a href="#moving-from-pwa-pop">Moving from PWA Pop</a> ·
   <a href="TESTING.md">Test checklist</a>
-  <br>Current version: <b>4.9</b> · Linux (KDE Plasma, GNOME, XFCE, Cinnamon…) · X11 and Wayland
+  <br>Current version: <b>5.0</b> · Linux (KDE Plasma, GNOME, XFCE, Cinnamon…) · X11 and Wayland
 </p>
 
 <p align="center"><img src="docs/screenshots/manager.png" width="820" alt="The WebRoost manager listing four apps with their status, memory use and buttons"></p>
@@ -229,7 +229,7 @@ installs the right package. For the Flatpak it looks like this; set `V` to the
 version you want:
 
 ```bash
-V=4.9; cd ~/Downloads && curl -fL -o webroost-$V-x86_64.flatpak https://github.com/samschultzponsys/webroost/releases/download/v$V/webroost-$V-x86_64.flatpak && curl -fsSL https://github.com/samschultzponsys/webroost/releases/download/v$V/SHA256SUMS.txt | grep " webroost-$V-x86_64.flatpak$" | sha256sum -c - && flatpak install -y --user ./webroost-$V-x86_64.flatpak && flatpak run --branch=stable io.github.samschultzponsys.WebRoost --restart-all
+V=5.0; cd ~/Downloads && curl -fL -o webroost-$V-x86_64.flatpak https://github.com/samschultzponsys/webroost/releases/download/v$V/webroost-$V-x86_64.flatpak && curl -fsSL https://github.com/samschultzponsys/webroost/releases/download/v$V/SHA256SUMS.txt | grep " webroost-$V-x86_64.flatpak$" | sha256sum -c - && flatpak install -y --user ./webroost-$V-x86_64.flatpak && flatpak run --branch=stable io.github.samschultzponsys.WebRoost --restart-all
 ```
 
 ## Troubleshooting
@@ -401,8 +401,8 @@ Unit tests: `npm test`. Manual release checks: [TESTING.md](TESTING.md).
 
 ## Versioning and releases
 
-* Versions are **`MAJOR.MINOR`**: … 4.8, 4.9, then **5.0**. `package.json`
-  stores `4.9.0` because npm needs three numbers.
+* Versions are **`MAJOR.MINOR`**: … 4.8, 4.9, **5.0**, 5.1 … `package.json`
+  stores `5.0.0` because npm needs three numbers.
 * To release: add notes under `## [Unreleased]` in `CHANGELOG.md`, bump the
   version (`npm run version:bump`) and push to `main`. GitHub Actions builds
   every package only when the version changes, and publishes **one release**,
