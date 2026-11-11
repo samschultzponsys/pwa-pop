@@ -69,9 +69,10 @@ function card({ config: c, icon, baseIcon, installed, running, memoryMb }) {
     el('div', { class: 'badges' },
       el('span', { class: 'badge' }, c.id),
       el('span', { class: 'badge' + (running ? ' on' : '') }, running ? 'running' : 'not running'),
-      memoryMb != null ? el('span', {
+      memoryMb != null ? el('button', {
         class: 'badge' + (c.memory_limit_mb && memoryMb > c.memory_limit_mb * 0.9 ? ' warn' : ''),
-        title: 'Memory used by this app (all its processes)',
+        type: 'button', title: 'Memory used by this app (all its processes). Click for details.',
+        onclick: () => openMemory(),
       }, `RAM ${fmtMb(memoryMb)}${c.memory_limit_mb ? ` / ${fmtMb(c.memory_limit_mb)}` : ''}`) : null,
       installed.menu ? el('span', { class: 'badge on' }, 'in menu') : null,
       installed.autostart ? el('span', { class: 'badge on' }, 'autostart') : null,
@@ -708,3 +709,96 @@ $('#f-autoupdate').addEventListener('change', (e) => guard(() => api.setAutoUpda
   $('#f-autoupdate').checked = await api.getAutoUpdate();
   if ($('#f-autoupdate').checked) checkUpdate(false).catch(() => {});
 })();
+
+// ---------------------------------------------------------------- memory
+const memDlg = $('#memory');
+let memTimer = null;
+
+function sparkline(history, limit) {
+  const pts = history.filter(([, mb]) => mb > 0);
+  if (pts.length < 2) return '<svg viewBox="0 0 170 34"></svg>';
+  const now = Date.now();
+  const t0 = now - 6 * 3600_000;
+  const top = Math.max(...pts.map(([, mb]) => mb), limit || 0) * 1.1 || 1;
+  const x = (t) => ((t - t0) / (now - t0)) * 170;
+  const y = (mb) => 34 - (mb / top) * 32;
+  const line = pts.map(([t, mb]) => `${x(t).toFixed(1)},${y(mb).toFixed(1)}`).join(' ');
+  const area = `${x(pts[0][0]).toFixed(1)},34 ${line} ${x(pts[pts.length - 1][0]).toFixed(1)},34`;
+  const lim = limit ? `<line class="limit" x1="0" x2="170" y1="${y(limit).toFixed(1)}" y2="${y(limit).toFixed(1)}"/>` : '';
+  return `<svg viewBox="0 0 170 34" preserveAspectRatio="none" role="img" aria-label="Memory over the last 6 hours"><polygon class="area" points="${area}"/><polyline points="${line}"/>${lim}</svg>`;
+}
+
+async function renderMemory() {
+  const data = await api.memory();
+  const live = data.filter((a) => a.sample);
+  const idle = data.filter((a) => !a.sample);
+  const total = live.reduce((n, a) => n + a.sample.total, 0);
+  const core = live.reduce((n, a) => n + a.sample.core, 0);
+  const pages = live.reduce((n, a) => n + a.sample.pages, 0);
+  const approx = live.some((a) => a.sample.method !== 'pss');
+
+  const summary = $('#mem-summary');
+  summary.replaceChildren(
+    el('div', { class: 'mem-stat' }, el('b', {}, live.length ? fmtMb(total) : '—'), el('span', {}, `${live.length} running app${live.length === 1 ? '' : 's'}${approx ? ' (approximate)' : ''}`)),
+    el('div', { class: 'mem-stat' }, el('b', {}, live.length ? fmtMb(pages) : '—'), el('span', {}, 'pages')),
+    el('div', { class: 'mem-stat' }, el('b', {}, live.length ? fmtMb(core) : '—'), el('span', {}, 'browser cores')),
+  );
+  // What one shared core for everything except the phone app would save.
+  const shareable = live.filter((a) => !a.phone);
+  const kept = live.filter((a) => a.phone).map((a) => a.name);
+  if (shareable.length >= 2) {
+    const cores = shareable.map((a) => a.sample.core);
+    const save = cores.reduce((n, c) => n + c, 0) - Math.max(...cores);
+    summary.append(el('div', { class: 'mem-save' },
+      el('b', {}, `About ${fmtMb(save)} could be saved`),
+      ` if ${shareable.map((a) => a.name).join(', ')} shared one browser core instead of ${shareable.length}`,
+      kept.length ? ` (keeping ${kept.join(', ')} in its own process)` : '', '.'));
+  }
+
+  const max = Math.max(1, ...live.map((a) => Math.max(a.sample.total, a.limit || 0)));
+  const list = $('#mem-list');
+  list.replaceChildren(...live.sort((a, b) => b.sample.total - a.sample.total).map((a) => {
+    const s = a.sample;
+    const icon = apps.find((x) => x.config.id === a.id)?.icon || '../assets/icon.svg';
+    const peak = Math.max(s.total, ...a.history.map(([, mb]) => mb));
+    const near = a.limit && s.total > a.limit * 0.9;
+    const spark = el('div', { class: 'mem-spark' });
+    spark.innerHTML = sparkline(a.history, a.limit);
+    spark.append(el('span', {}, `6 h peak ${fmtMb(peak)}`));
+    // Widths via CSSOM: the page's CSP doesn't allow inline style attributes.
+    const coreSeg = el('div', { class: 'core' });
+    const pageSeg = el('div', { class: 'pages' });
+    coreSeg.style.width = `${(s.core / max) * 100}%`;
+    pageSeg.style.width = `${(s.pages / max) * 100}%`;
+    const bar = el('div', { class: 'mem-bar', title: `Core ${fmtMb(s.core)} · pages ${fmtMb(s.pages)}` }, coreSeg, pageSeg);
+    return el('div', { class: 'mem-row' },
+      el('img', { src: icon, alt: '' }),
+      el('div', { class: 'mem-main' },
+        el('div', { class: 'mem-title' },
+          el('b', {}, a.name),
+          el('span', { class: 'num' + (near ? ' warn' : '') }, fmtMb(s.total)),
+          a.limit ? el('span', { class: 'muted' + (near ? ' warn' : '') }, `of ${fmtMb(a.limit)} limit`) : null,
+          el('span', { class: 'muted' }, `core ${fmtMb(s.core)} · pages ${fmtMb(s.pages)}`)),
+        bar),
+      spark,
+      el('details', {},
+        el('summary', {}, `${s.processes.length} processes`),
+        el('div', { class: 'mem-procs' }, ...s.processes.flatMap((p) => [el('span', {}, p.name === p.type ? p.type : `${p.type} · ${p.name}`), el('span', {}, fmtMb(p.mb))]))),
+    );
+  }));
+  if (!live.length) list.append(el('p', { class: 'hint' }, 'No app is running, or none has measured itself yet (they do within a minute of starting).'));
+  $('#mem-idle').textContent = idle.length ? `Not running or not measured yet: ${idle.map((a) => a.name).join(', ')}.` : '';
+  const newest = Math.max(0, ...live.map((a) => a.at || 0));
+  $('#mem-updated').textContent = newest ? `updated ${new Date(newest).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '';
+}
+
+function openMemory() {
+  guard(async () => {
+    await renderMemory();
+    if (!memDlg.open) memDlg.showModal();
+    clearInterval(memTimer);
+    memTimer = setInterval(() => { if (memDlg.open) guard(renderMemory); }, 15_000);
+  });
+}
+memDlg.addEventListener('close', () => clearInterval(memTimer));
+$('#btn-memory').addEventListener('click', openMemory);

@@ -14,6 +14,21 @@ export interface AppState {
   /** Last measured memory use (MB) and when, for the manager. */
   memoryMb?: number;
   memoryAt?: number;
+  /** Latest memory breakdown (MB): browser core vs. pages, per process. */
+  memory?: MemorySample;
+  /** [time ms, total MB] about once a minute, last 6 hours. */
+  memoryHistory?: [number, number][];
+}
+
+export interface MemorySample {
+  total: number;
+  /** Main, GPU and utility processes: the part a shared core would hold once. */
+  core: number;
+  /** Renderer processes: the web pages, service workers and frames. */
+  pages: number;
+  /** "pss" (shared memory split fairly) or "rss" (may count shared memory twice). */
+  method: 'pss' | 'rss' | 'mixed';
+  processes: { type: string; name: string; mb: number }[];
 }
 
 export class StateStore {

@@ -90,6 +90,17 @@ function registerIpc(win: BrowserWindow) {
     };
   })));
 
+  h('apps:memory', () => Promise.all(loadApps().map(async (a) => {
+    const running = await isRunning(a.id);
+    const st = new StateStore(a.id).data;
+    const fresh = running && !!st.memoryAt && Date.now() - st.memoryAt < 3 * 60_000;
+    return {
+      id: a.id, name: a.name, running, limit: a.memory_limit_mb ?? null, phone: !!a.handle_schemes?.length,
+      at: st.memoryAt ?? null, sample: fresh ? st.memory ?? null : null,
+      history: running ? (st.memoryHistory ?? []) : [],
+    };
+  })));
+
   h('apps:inspect', (url: string) => inspectSite(url));
 
   h('apps:save', (cfg: AppConfig, iconPng: string | null, previousId: string | null) => {

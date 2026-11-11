@@ -14,7 +14,7 @@ import { desktopId, isInstalled, stableIcon } from './desktop';
 import { NotificationBridge } from './notifications';
 import { isSafeExternal, looksLikeAuth, OriginMatcher } from './origins';
 import { assetPath, CONFIG_FILE, ensureDir, ICON_DIR, IN_FLATPAK, readVersionMarker, releaseVersion, spawnSelf } from './paths';
-import { StateStore } from './state';
+import { MemorySample, StateStore } from './state';
 import { backgroundCheck, isNewer, UpdateInfo } from './updater';
 
 /** Permissions granted to allowed origins unless the config adds more. */
@@ -279,9 +279,37 @@ export class AppRuntime {
   private reloadedForMemoryAt = 0;
 
   /** Sum of all this app's processes (browser, GPU, utility, renderers), in MB. */
-  private memoryMb(): number {
-    const kb = app.getAppMetrics().reduce((sum, m) => sum + (m.memory?.workingSetSize ?? 0), 0);
-    return Math.round(kb / 1024);
+  /**
+   * Memory of all this app's processes. Uses PSS from /proc (shared pages
+   * split between the processes sharing them), so totals don't count the
+   * shared Chromium libraries several times; falls back to the working set.
+   */
+  private memorySample(): MemorySample {
+    let pss = 0, rss = 0, core = 0, pages = 0, total = 0;
+    const processes: MemorySample['processes'] = [];
+    for (const m of app.getAppMetrics()) {
+      let kb = 0;
+      try {
+        // Sandboxed children may live in another PID namespace (Flatpak):
+        // only trust /proc when that PID really is one of our processes.
+        const cmd = fs.readFileSync(`/proc/${m.pid}/cmdline`, 'utf8');
+        const ours = m.pid === process.pid || (cmd.includes(path.basename(process.execPath)) && cmd.includes('--type='));
+        if (!ours) throw new Error('not ours');
+        const t = fs.readFileSync(`/proc/${m.pid}/smaps_rollup`, 'utf8');
+        const hit = /^Pss:\s+(\d+)\s*kB/m.exec(t);
+        if (hit) { kb = Number(hit[1]); pss++; }
+      } catch { /* not visible from here (sandboxed child) */ }
+      if (!kb) { kb = m.memory?.workingSetSize ?? 0; rss++; }
+      const mb = kb / 1024;
+      total += mb;
+      if (m.type === 'Tab') pages += mb; else core += mb;
+      processes.push({ type: m.type, name: m.name || m.serviceName || m.type, mb: Math.round(mb) });
+    }
+    processes.sort((a, b) => b.mb - a.mb);
+    return {
+      total: Math.round(total), core: Math.round(core), pages: Math.round(pages),
+      method: rss === 0 ? 'pss' : pss === 0 ? 'rss' : 'mixed', processes,
+    };
   }
 
   /** Busy = a call or media is (or just was) playing, or the user is typing/clicking in the window. */
@@ -298,8 +326,12 @@ export class AppRuntime {
     const fmt = (mb: number) => (mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`);
     const tick = () => {
       if (this.quitting || this.win.isDestroyed()) return;
-      const mb = this.memoryMb();
-      this.state.update({ memoryMb: mb, memoryAt: Date.now() });
+      const sample = this.memorySample();
+      const mb = sample.total;
+      const now0 = Date.now();
+      const history = (this.state.data.memoryHistory ?? []).filter(([t]) => now0 - t < 6 * 3600_000);
+      history.push([now0, mb]);
+      this.state.update({ memoryMb: mb, memoryAt: now0, memory: sample, memoryHistory: history });
       const limit = Number(this.cfg.memory_limit_mb) || 0;
       if (!limit || mb <= limit) return;
       if (this.busy()) { debug(`memory ${mb} MB over ${limit} MB, waiting (in use / audio)`); return; }

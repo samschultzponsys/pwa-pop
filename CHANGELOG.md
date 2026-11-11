@@ -9,6 +9,26 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [4.0] - 2026-11-11
+
+Rolls over from 3.9 under the MAJOR.MINOR scheme.
+
+### Added
+- **Memory view** in the manager (header button, or click an app's RAM
+  badge). For each running app it shows:
+  - memory now, split into browser core and pages
+  - a 6-hour graph with the memory limit marked
+  - the 6-hour peak
+  - a per-process list
+
+  Totals cover all running apps. The view also estimates the savings if the
+  apps shared one browser core, keeping the phone app separate. It refreshes
+  every 15 s while open.
+- Memory is measured as PSS (shared memory split fairly), so per-app numbers
+  no longer count Chromium's shared libraries several times. Processes in
+  another PID namespace (Flatpak sandboxes) are checked before /proc is
+  trusted, with the working set as the fallback.
+
 ## [3.9] - 2026-11-10
 
 ### Fixed

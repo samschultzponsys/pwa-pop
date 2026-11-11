@@ -4,6 +4,7 @@ const call = (ch: string) => (...args: unknown[]) => ipcRenderer.invoke(ch, ...a
 
 contextBridge.exposeInMainWorld('webtray', {
   list: call('apps:list'),
+  memory: call('apps:memory'),
   inspect: call('apps:inspect'),
   save: call('apps:save'),
   remove: call('apps:remove'),

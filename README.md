@@ -6,7 +6,7 @@
 Run Outlook, Claude, the Yeastar Linkus softphone or any other site as a real desktop app,
 with its own window, tray icon, login, notifications, unread badge, autostart and headset buttons.</p>
 
-<p align="center">Current version: <b>3.9</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
+<p align="center">Current version: <b>4.0</b> · <a href="CHANGELOG.md">Changelog</a> · <a href="https://github.com/samschultzponsys/pwa-pop/releases">Downloads</a> · <a href="TESTING.md">Test checklist</a></p>
 
 ---
 
@@ -97,6 +97,16 @@ start page and icon automatically. Chrome-only install links
 (`chrome-extension://…`, `--app-id=…`) aren't needed and won't work. For sites
 behind a login (such as an on-prem PBX), the manifest may be hidden. In that case
 PWA Pop uses the page's favicon after your first sign-in, or you can pick an icon.
+
+### Memory
+
+**Memory** in the manager's header (or any app's RAM badge) shows each running
+app's memory now, split into its *browser core* (main, GPU and helper
+processes) and its *pages* (the site itself). It also shows a graph of the
+last 6 hours, the peak, the memory limit if one is set, and the individual
+processes. Shared memory is split fairly between processes (PSS), so the
+numbers add up. The view also estimates how much would be saved if the apps
+shared one browser core, keeping the phone app in its own process.
 
 ### Moving to another computer
 

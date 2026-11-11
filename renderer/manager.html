@@ -14,6 +14,7 @@
       <p>Web apps that live in your tray</p>
     </div>
     <div class="spacer"></div>
+    <button id="btn-memory" class="ghost" title="Memory use per app">Memory</button>
     <button id="btn-import" class="ghost" title="Add apps from a PWA Pop export file">Import…</button>
     <button id="btn-export" class="ghost" title="Save all apps and their icons to one file, to set up another computer">Export…</button>
     <button id="btn-config" class="ghost" title="Open apps.yaml in your editor">Edit apps.yaml</button>
@@ -53,6 +54,24 @@
     <button id="btn-check-update" class="link">Check now</button>
     <button id="btn-manager-entry" class="link hidden">Add PWA Pop to the app menu</button>
   </footer>
+
+  <dialog id="memory">
+    <form method="dialog" class="memory">
+      <div class="mem-head">
+        <h2>Memory</h2>
+        <span class="muted" id="mem-updated"></span>
+      </div>
+      <div id="mem-summary" class="mem-summary"></div>
+      <div class="mem-legend">
+        <span><i class="sw core"></i>Browser core: main, GPU and helper processes</span>
+        <span><i class="sw pages"></i>Pages: the site itself, its workers and frames</span>
+      </div>
+      <div id="mem-list" class="mem-list"></div>
+      <p id="mem-idle" class="hint"></p>
+      <p class="hint">Measured about once a minute by each running app. Shared memory is split fairly between the processes that use it (PSS), so the numbers add up. The graph shows the last 6 hours.</p>
+      <div class="actions"><button type="submit" class="primary">Close</button></div>
+    </form>
+  </dialog>
 
   <dialog id="guide">
     <form method="dialog" class="guide">
