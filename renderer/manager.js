@@ -673,6 +673,7 @@ async function showGuide() {
 }
 
 $('#btn-guide').addEventListener('click', () => guard(showGuide));
+$('#btn-credit').addEventListener('click', () => api.openExternal('https://github.com/samschultzponsys/webroost'));
 $('#btn-update-howto').addEventListener('click', () => guard(showGuide));
 $('#btn-guide-releases').addEventListener('click', () => api.openExternal(lastUpdate?.releaseUrl || 'https://github.com/samschultzponsys/webroost/releases/latest'));
 $('#btn-check-update').addEventListener('click', () => guard(() => checkUpdate(true)));

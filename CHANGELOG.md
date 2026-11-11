@@ -9,6 +9,23 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [4.3] - 2026-11-11
+
+### Changed
+- **License: Apache 2.0** (was MIT). It's still free to use, change and
+  share, commercially too. Anyone who redistributes WebRoost or a work based
+  on it must now include the `NOTICE` file crediting the original project, and
+  mark the files they changed. Releases up to 4.2 stay under MIT.
+- `LICENSE` and `NOTICE` ship inside every package (and the Flatpak's
+  `share/licenses`).
+- The README has a "Name and logo" note asking forks to use their own name
+  and icon. The manager's footer credits the author, with a link to the
+  project.
+
+### Fixed
+- The README's logo comes from a new file name, so GitHub's image cache can't
+  keep showing the old icon.
+
 ## [4.2] - 2026-11-11
 
 ### Added

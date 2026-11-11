@@ -1,4 +1,4 @@
-<p align="center"><img src="assets/icons/256x256.png" width="128" alt="WebRoost icon: a birdhouse with a bird peeking out"></p>
+<p align="center"><img src="docs/webroost-icon.png" width="128" alt="WebRoost icon: a birdhouse with a bird peeking out"></p>
 
 <h1 align="center">WebRoost</h1>
 
@@ -12,7 +12,7 @@ desktop app: own window, tray icon, login, notifications, unread badge, autostar
   <a href="#install">Install</a> ·
   <a href="#moving-from-pwa-pop">Moving from PWA Pop</a> ·
   <a href="TESTING.md">Test checklist</a>
-  <br>Current version: <b>4.2</b> · Linux (KDE Plasma, GNOME, XFCE, Cinnamon…) · X11 and Wayland
+  <br>Current version: <b>4.3</b> · Linux (KDE Plasma, GNOME, XFCE, Cinnamon…) · X11 and Wayland
 </p>
 
 <p align="center"><img src="docs/screenshots/manager.png" width="820" alt="The WebRoost manager listing four apps with their status, memory use and buttons"></p>
@@ -391,4 +391,16 @@ Unit tests: `npm test`. Manual release checks: [TESTING.md](TESTING.md).
 
 ## License
 
-[MIT](LICENSE)
+WebRoost is free and open source under the [Apache License 2.0](LICENSE):
+use it, change it, share it or build on it, commercially too. If you
+distribute WebRoost or something based on it, include the [`NOTICE`](NOTICE)
+file, which credits the original project, and mark the files you changed.
+Releases up to 4.2 were published under the MIT License.
+
+### Name and logo
+
+"WebRoost" and the birdhouse logo identify this project. Forks and modified
+versions are welcome, but please give them a different name and icon so
+nobody mistakes them for the original, and keep the credit from `NOTICE`.
+
+Created by **Sam Schultz**.

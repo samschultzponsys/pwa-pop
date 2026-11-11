@@ -1,10 +1,10 @@
 {
   "name": "webroost",
   "productName": "WebRoost",
-  "version": "4.2.0",
+  "version": "4.3.0",
   "description": "Run web apps (Outlook, Claude, Linkus…) as standalone, tray-resident desktop apps on Linux",
   "main": "dist/main.js",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "author": {
     "name": "Sam Schultz",
     "email": "sam.schultz2014@gmail.com"
@@ -51,12 +51,22 @@
       "dist/**/*",
       "renderer/**/*",
       "assets/**/*",
-      "package.json"
+      "package.json",
+      "LICENSE",
+      "NOTICE"
     ],
     "extraResources": [
       {
         "from": "build/70-webroost-hid.rules",
         "to": "70-webroost-hid.rules"
+      },
+      {
+        "from": "LICENSE",
+        "to": "LICENSE"
+      },
+      {
+        "from": "NOTICE",
+        "to": "NOTICE"
       }
     ],
     "linux": {

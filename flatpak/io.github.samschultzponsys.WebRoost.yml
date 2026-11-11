@@ -65,6 +65,8 @@ modules:
       - install -Dm755 webroost.sh /app/bin/webroost
       # The command's name before the rename keeps working.
       - ln -s webroost /app/bin/webtray
+      - install -Dm644 app/resources/LICENSE /app/share/licenses/io.github.samschultzponsys.WebRoost/LICENSE
+      - install -Dm644 app/resources/NOTICE /app/share/licenses/io.github.samschultzponsys.WebRoost/NOTICE
       - install -Dm644 io.github.samschultzponsys.WebRoost.desktop /app/share/applications/io.github.samschultzponsys.WebRoost.desktop
       - install -Dm644 io.github.samschultzponsys.WebRoost.metainfo.xml /app/share/metainfo/io.github.samschultzponsys.WebRoost.metainfo.xml
       - for s in 16 24 32 48 64 128 256 512; do install -Dm644 icons/${s}x${s}.png /app/share/icons/hicolor/${s}x${s}/apps/io.github.samschultzponsys.WebRoost.png; done

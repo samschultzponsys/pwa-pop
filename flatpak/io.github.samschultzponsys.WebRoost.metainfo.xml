@@ -4,7 +4,7 @@
   <name>WebRoost</name>
   <summary>Run web apps as tray-resident desktop apps</summary>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>MIT</project_license>
+  <project_license>Apache-2.0</project_license>
   <developer id="io.github.samschultzponsys"><name>Sam Schultz</name></developer>
   <description>
     <p>WebRoost turns web apps such as Outlook, Claude or a web softphone into
