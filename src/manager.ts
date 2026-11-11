@@ -4,7 +4,7 @@ import * as net from 'net';
 import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage, session, shell } from 'electron';
 import { AppConfig, ID_RE, loadApps, removeApp, resolveApp, upsertApp } from './config';
 import { installApp, installManagerEntry, isInstalled, setAutostart, uninstallApp } from './desktop';
-import { CONFIG_FILE, ensureDir, ICON_DIR, PROFILE_DIR, assetPath, IN_FLATPAK, readVersionMarker, releaseVersion, spawnSelf } from './paths';
+import { CONFIG_FILE, ensureDir, ICON_DIR, PROFILE_DIR, assetPath, IN_FLATPAK, readVersionMarker, releaseVersion, spawnSelf, MIGRATION_NOTE } from './paths';
 import { isNewer } from './updater';
 import { cleanUserAgent } from './runtime';
 import { inspectSite } from './inspect';
@@ -216,6 +216,19 @@ function registerIpc(win: BrowserWindow) {
   h('icon:colors', () => COLOR_ORDER);
   h('app:openConfig', () => shell.openPath(CONFIG_FILE));
   h('app:installManager', () => installManagerEntry());
+  h('app:migration', () => {
+    try {
+      const m = JSON.parse(fs.readFileSync(MIGRATION_NOTE, 'utf8'));
+      return m.dismissed ? null : m;
+    } catch { return null; }
+  });
+  h('app:migrationDone', () => {
+    try {
+      const m = JSON.parse(fs.readFileSync(MIGRATION_NOTE, 'utf8'));
+      fs.writeFileSync(MIGRATION_NOTE, JSON.stringify({ ...m, dismissed: true }));
+    } catch { /* nothing to dismiss */ }
+    return true;
+  });
   h('app:info', () => ({
     version: releaseVersion(), configFile: CONFIG_FILE, flatpak: IN_FLATPAK, appImage: !!process.env.APPIMAGE,
   }));

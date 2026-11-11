@@ -9,6 +9,22 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [4.2] - 2026-11-11
+
+### Added
+- **New icon:** a birdhouse, home for your web apps, with its resident peeking
+  out. There's a simplified version for 16–32 px so it stays clear in the tray
+  and menus.
+- **Welcome banner after moving from PWA Pop.** It says how many apps (with
+  icons and logins) were brought over, and has a Copy button for the command
+  that removes the old PWA Pop Flatpak.
+
+### Changed
+- README rewritten for WebRoost: screenshots, what it's for, the features as
+  they are today, a step-by-step move from PWA Pop, and the settings table
+  folded away.
+- The Memory view's savings line reads "A, B and C" rather than "A, B, C".
+
 ## [4.1] - 2026-11-11
 
 ### Changed

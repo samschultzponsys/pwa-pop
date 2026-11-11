@@ -48,6 +48,8 @@ async function refresh() {
   for (const a of apps) list.append(card(a));
 }
 
+/** "A", "A and B", "A, B and C". */
+const andList = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 const fmtMb = (mb) => (mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`);
 
 function card({ config: c, icon, baseIcon, installed, running, memoryMb }) {
@@ -624,6 +626,7 @@ async function checkUpdate(force) {
   const u = await api.checkUpdate(force);
   showUpdate(u);
   loadGuide().catch(() => {});
+  showMoved().catch(() => {});
   if (force) {
     if (u.error) toast(`Update check failed: ${u.error}`);
     else if (!u.available) toast(`WebRoost ${u.current} is the latest version`);
@@ -751,8 +754,8 @@ async function renderMemory() {
     const save = cores.reduce((n, c) => n + c, 0) - Math.max(...cores);
     summary.append(el('div', { class: 'mem-save' },
       el('b', {}, `About ${fmtMb(save)} could be saved`),
-      ` if ${shareable.map((a) => a.name).join(', ')} shared one browser core instead of ${shareable.length}`,
-      kept.length ? ` (keeping ${kept.join(', ')} in its own process)` : '', '.'));
+      ` if ${andList(shareable.map((a) => a.name))} shared one browser core instead of ${shareable.length}`,
+      kept.length ? ` (keeping ${andList(kept)} in ${kept.length === 1 ? 'its' : 'their'} own process${kept.length === 1 ? '' : 'es'})` : '', '.'));
   }
 
   const max = Math.max(1, ...live.map((a) => Math.max(a.sample.total, a.limit || 0)));
@@ -802,3 +805,19 @@ function openMemory() {
 }
 memDlg.addEventListener('close', () => clearInterval(memTimer));
 $('#btn-memory').addEventListener('click', openMemory);
+
+// ------------------------------------------------- moved from PWA Pop
+async function showMoved() {
+  const m = await api.migration();
+  if (!m) return;
+  $('#moved-text').textContent = `Your ${m.apps} app${m.apps === 1 ? '' : 's'}, their icons and logins were brought over, and the menu and autostart entries now start WebRoost. `
+    + (m.flatpak ? 'Remove the old PWA Pop Flatpak whenever you like:' : 'The old pwa-pop package is replaced when this one is installed.');
+  if (m.flatpak) {
+    const cmd = 'flatpak uninstall --user io.github.samschultzponsys.PwaPop';
+    $('#moved-cmd code').textContent = cmd;
+    $('#moved-cmd').classList.remove('hidden');
+    $('#btn-moved-copy').onclick = () => guard(async () => { await api.copy(cmd); toast('Copied'); });
+  }
+  $('#moved-banner').classList.remove('hidden');
+  $('#btn-moved-ok').onclick = () => guard(async () => { await api.migrationDone(); $('#moved-banner').classList.add('hidden'); });
+}

@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld('webroost', {
   openConfig: call('app:openConfig'),
   installManager: call('app:installManager'),
   info: call('app:info'),
+  migration: call('app:migration'),
+  migrationDone: call('app:migrationDone'),
   openExternal: call('app:openExternal'),
   checkUpdate: call('update:check'),
   installUpdate: call('update:install'),

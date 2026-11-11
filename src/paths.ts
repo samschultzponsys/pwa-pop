@@ -29,6 +29,8 @@ function hostDataHome(): string {
 
 export const CONFIG_HOME = hostConfigHome();
 export const CONFIG_DIR = path.join(hostConfigHome(), 'webroost');
+/** Written after copying PWA Pop's settings; the manager shows a one-time banner. */
+export const MIGRATION_NOTE = path.join(CONFIG_DIR, 'state', '_moved-from-pwa-pop.json');
 /** Where PWA Pop (the name before WebRoost) kept everything. */
 export const LEGACY_CONFIG_DIR = path.join(hostConfigHome(), 'webtray');
 export const CONFIG_FILE = path.join(CONFIG_DIR, 'apps.yaml');
@@ -218,6 +220,11 @@ export function migrateLegacyConfig(): void {
     const yaml = fs.readFileSync(legacyFile, 'utf8').split(LEGACY_CONFIG_DIR + path.sep).join(CONFIG_DIR + path.sep);
     fs.writeFileSync(done + '.tmp', yaml);
     fs.renameSync(done + '.tmp', done); // apps.yaml last: it marks the copy complete
+    try {
+      ensureDir(STATE_DIR);
+      const apps = (yaml.match(/^\s*-\s+id:/gm) ?? []).length;
+      fs.writeFileSync(MIGRATION_NOTE, JSON.stringify({ at: Date.now(), from: LEGACY_CONFIG_DIR, apps, flatpak: IN_FLATPAK }));
+    } catch { /* only for the manager's welcome banner */ }
     try {
       fs.writeFileSync(path.join(LEGACY_CONFIG_DIR, 'MOVED-TO-WEBROOST.txt'),
         `PWA Pop is now WebRoost. Everything in this folder was copied to ${CONFIG_DIR} on ${new Date().toString()}.\n` +
