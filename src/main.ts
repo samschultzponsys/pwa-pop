@@ -112,6 +112,8 @@ function cli(): boolean {
     const cfg: AppConfig = {
       id, name: opt('--name') ?? id.charAt(0).toUpperCase() + id.slice(1), url: url.href,
       allowed_origins: [url.origin],
+      // Like the manager: new apps minimize to the tray.
+      minimize_to_tray: true,
     };
     if (flag('--autostart')) cfg.autostart = true;
     if (flag('--start-hidden')) cfg.start_hidden = true;

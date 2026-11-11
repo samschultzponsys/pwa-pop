@@ -430,7 +430,8 @@ async function openEditor(cfg, iconUrl, mode = cfg ? 'edit' : 'add') {
   $('#f-keepsignin').checked = !cfg?.forget_session_cookies;
   $('#f-resume').checked = !!cfg?.reload_on_resume;
   $('#f-keys').checked = !!cfg?.pass_shortcuts;
-  $('#f-mintray').checked = !!cfg?.minimize_to_tray;
+  // New apps minimize to the tray by default; existing apps keep their setting.
+  $('#f-mintray').checked = cfg ? !!cfg.minimize_to_tray : true;
   $('#f-cert').checked = !!cfg?.ignore_certificate_errors;
   $('#f-memlimit').value = cfg?.memory_limit_mb || '';
   $('#f-calls').checked = !!(cfg?.handle_schemes || []).length;

@@ -9,6 +9,16 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [4.8] - 2026-11-11
+
+### Changed
+- **Minimize to the tray is on by default for new apps**, whether added in the
+  manager, duplicated from one that has it, or added with `webroost --add`.
+  Existing apps keep their setting.
+- README brought up to date: minimize-to-tray on KDE, quieter new-mail
+  popups, a version-independent update command, and step-by-step second
+  accounts.
+
 ## [4.7] - 2026-11-11
 
 ### Changed

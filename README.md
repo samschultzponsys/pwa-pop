@@ -12,7 +12,7 @@ desktop app: own window, tray icon, login, notifications, unread badge, autostar
   <a href="#install">Install</a> ·
   <a href="#moving-from-pwa-pop">Moving from PWA Pop</a> ·
   <a href="TESTING.md">Test checklist</a>
-  <br>Current version: <b>4.7</b> · Linux (KDE Plasma, GNOME, XFCE, Cinnamon…) · X11 and Wayland
+  <br>Current version: <b>4.8</b> · Linux (KDE Plasma, GNOME, XFCE, Cinnamon…) · X11 and Wayland
 </p>
 
 <p align="center"><img src="docs/screenshots/manager.png" width="820" alt="The WebRoost manager listing four apps with their status, memory use and buttons"></p>
@@ -50,7 +50,7 @@ on Wayland** and working on any desktop with a system tray.
 |---|---|
 | **Manager** | Paste any address. WebRoost reads the site's name, icon and start page, and can detect your headset. Edit, duplicate, export and import apps. |
 | **Tray icon per app** | Left-click shows or hides the app. Right-click: Show/Hide, Reload, Send test notification, Mute, Save diagnostics…, Manage apps…, Quit. Unread count badge on the icon. |
-| **Close and minimize to tray** | Close (and Ctrl+W) always hides to the tray. With *Minimize to the tray*, minimize does too. |
+| **Close and minimize to tray** | Close (and Ctrl+W) always hides to the tray, and minimize does too (on by default for new apps; on KDE Plasma via a small KWin script). Calls keep ringing in the tray. |
 | **Always awake** | No background throttling, so calls ring and mail arrives while the app is hidden. |
 | **Notifications** | Native popups via the desktop's notification service, labelled with each app's name and icon. Optional urgent mode for incoming calls; mute per app. |
 | **New-mail popups** | *Notify when the unread count goes up*: for sites like the new Outlook, whose own notifications need Chrome's web push. |
@@ -116,11 +116,14 @@ picks up the site's icon after your first sign-in, or you can choose one.
 In **Manage apps → Edit**:
 
 - **Notify when the unread count goes up**: new-mail popups for the new Outlook
-  and similar sites.
-- **Minimize to the tray**: minimize hides to the tray instead of the taskbar.
-  On KDE Plasma (Wayland), WebRoost loads a small KWin script that takes the
-  minimized window off the taskbar, because KWin doesn't tell apps they were
-  minimized. Elsewhere on Wayland it's best effort.
+  and similar sites, with sender, subject and preview. Tick *Only pop up when
+  the new message can be shown* to skip plain "New message" popups.
+- **Minimize to the tray**: on by default for new apps. Minimize hides the app
+  to its tray icon instead of the taskbar, and clicking the tray icon brings it
+  back. On KDE Plasma (Wayland), WebRoost loads a small KWin script that takes
+  the minimized window off the taskbar, because KWin doesn't tell apps they
+  were minimized (the Flatpak asks once for permission to talk to KWin).
+  Elsewhere on Wayland it's best effort.
 - **Stay signed in across restarts**: on by default.
 - **Open phone links (tel:, callto:, sip:)**: makes this app your click-to-call
   phone. See [Click-to-call](#click-to-call).
@@ -198,9 +201,15 @@ Logins don't travel in the file, so sign in to each app once.
 ## Several accounts on the same site
 
 Every app has its own profile, so two entries for the same site are fully
-separate. Click **Duplicate** on an app: the copy gets a unique ID and name
-("Claude (2)"), a different icon colour and a numbered label, so the tray icons
-are easy to tell apart. Sign in with the other account and rename it as you like.
+separate: different logins, cookies and settings. To add a second account:
+
+1. Click **Duplicate** on the app. The copy gets a unique ID and name
+   ("Claude (2)"), a different icon colour and a numbered label, so the tray
+   icons are easy to tell apart.
+2. Optionally rename it (e.g. "Claude (Work)") and **Save**.
+3. **Open** it and sign in with the other account.
+
+Both run side by side, each with its own window, tray icon and taskbar entry.
 
 ## Updates
 
@@ -216,19 +225,24 @@ banner in the manager.
 
 **How to update** in the manager's footer shows the exact steps for your
 install, including a copyable one-line command that downloads, verifies and
-installs the right package. For example, the Flatpak:
+installs the right package. For the Flatpak it looks like this; set `V` to the
+version you want:
 
 ```bash
-cd ~/Downloads && curl -fL -o webroost-4.1-x86_64.flatpak https://github.com/samschultzponsys/webroost/releases/download/v4.1/webroost-4.1-x86_64.flatpak && curl -fsSL https://github.com/samschultzponsys/webroost/releases/download/v4.1/SHA256SUMS.txt | grep " webroost-4.1-x86_64.flatpak$" | sha256sum -c - && flatpak install -y --user ./webroost-4.1-x86_64.flatpak && flatpak run --branch=stable io.github.samschultzponsys.WebRoost --restart-all
+V=4.8; cd ~/Downloads && curl -fL -o webroost-$V-x86_64.flatpak https://github.com/samschultzponsys/webroost/releases/download/v$V/webroost-$V-x86_64.flatpak && curl -fsSL https://github.com/samschultzponsys/webroost/releases/download/v$V/SHA256SUMS.txt | grep " webroost-$V-x86_64.flatpak$" | sha256sum -c - && flatpak install -y --user ./webroost-$V-x86_64.flatpak && flatpak run --branch=stable io.github.samschultzponsys.WebRoost --restart-all
 ```
 
 ## Troubleshooting
 
-* **Notifications reach the history but don't pop up (KDE).** Fixed in 3.7:
-  KDE Plasma doesn't pop up notifications from an app's own processes, so
-  WebRoost sends them through a small helper. Set `WEBROOST_NOTIFY=electron` to
-  go back to Electron's own notifications. Also check Do Not Disturb, and that
-  KDE turns it on by itself while a full-screen app is focused.
+* **Notifications reach the history but don't pop up (KDE).** KDE Plasma
+  doesn't pop up notifications sent by an app's own processes, so WebRoost
+  sends them through a small helper (since 3.7). If they still don't pop up,
+  check Do Not Disturb: KDE turns it on by itself while a full-screen app is
+  focused or screens are mirrored. `WEBROOST_NOTIFY=electron` switches back to
+  Electron's own notifications.
+* **Minimize still goes to the taskbar.** Check *Minimize to the tray* is ticked
+  for that app. On KDE, the app's **Save diagnostics…** log says whether the
+  KWin script loaded.
 * **No popup for new mail (Outlook).** Tick *Notify when the unread count goes
   up*. Use the tray's **Send test notification** to check popups in general.
 * **Something's off?** Right-click the app's tray icon → **Save diagnostics…**.
@@ -290,7 +304,7 @@ seconds. A full, commented example is in [`examples/apps.yaml`](examples/apps.ya
 | `notify_only_with_message` | `false` | With `notify_on_unread`: no popup when the new message can't be found in the page (no plain "New message" popups). |
 | `notify_show_unread_total` | `false` | With `notify_on_unread`: add the unread total to the popup. |
 | `badge_regex` | `\((\d+)\)` | How to read an unread count from the page title. |
-| `minimize_to_tray` | `false` | Minimize hides to the tray. On KDE Plasma a KWin script takes the minimized window off the taskbar; on other Wayland desktops it's best effort (WebRoost notices the page being hidden). `WEBROOST_XWAYLAND=1` runs such apps under XWayland instead, where minimizing is always reported, but drawing can fail on some systems. |
+| `minimize_to_tray` | `false` (`true` for apps added in the manager or with `--add`) | Minimize hides to the tray. On KDE Plasma a KWin script takes the minimized window off the taskbar; on other Wayland desktops it's best effort (WebRoost notices the page being hidden). `WEBROOST_XWAYLAND=1` runs such apps under XWayland instead, where minimizing is always reported, but drawing can fail on some systems. |
 | `forget_session_cookies` | `false` | Drop session cookies when the app closes, instead of keeping sign-ins for 14 days. |
 | `memory_limit_mb` | – | Reload, then restart, the app above this many MB. Never during calls or while you're using it. |
 | `handle_schemes` | – | Link types this app opens and dials, e.g. `[tel, callto, sip]`. Only one app has them at a time. |
@@ -379,8 +393,8 @@ Unit tests: `npm test`. Manual release checks: [TESTING.md](TESTING.md).
 
 ## Versioning and releases
 
-* Versions are **`MAJOR.MINOR`**: 4.1 … 4.9, then **5.0**. `package.json`
-  stores `4.1.0` because npm needs three numbers.
+* Versions are **`MAJOR.MINOR`**: … 4.8, 4.9, then **5.0**. `package.json`
+  stores `4.8.0` because npm needs three numbers.
 * To release: add notes under `## [Unreleased]` in `CHANGELOG.md`, bump the
   version (`npm run version:bump`) and push to `main`. GitHub Actions builds
   every package only when the version changes, and publishes **one release**,
