@@ -239,7 +239,15 @@ export class AppRuntime {
             : 'Number field found and filled, but no call button: Enter will be pressed instead. Right-click the call button and choose "Call button" to set it.');
         return;
       }
-      if (result === 'no-button') {
+      const at = /^button:(-?\d+),(-?\d+)$/.exec(result);
+      if (at) {
+        // A real mouse click on the call button.
+        const z = wc.getZoomFactor();
+        const x = Math.round(Number(at[1]) * z), y = Math.round(Number(at[2]) * z);
+        wc.sendInputEvent({ type: 'mouseMove', x, y });
+        wc.sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: 1 });
+        wc.sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: 1 });
+      } else if (result === 'no-button') {
         // Press a real Enter in the number field (some dialpads only call on Enter).
         wc.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
         wc.sendInputEvent({ type: 'char', keyCode: '\r' });

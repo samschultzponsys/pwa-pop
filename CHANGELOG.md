@@ -9,6 +9,24 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [4.5] - 2026-11-11
+
+### Fixed
+- **Apps with "Minimize to the tray" still showed no window in 4.4**, and
+  clicking their tray icon minimized and restored every window on the
+  desktop. Running these apps under XWayland (since 3.9) doesn't work on
+  every system, so they now stay on native Wayland like all other apps.
+  Minimizing to the tray there relies on the page being reported as hidden.
+  For these apps WebRoost no longer turns off Chromium's hidden-window
+  detection, which was what stopped later minimizes from being noticed. This
+  is best effort: if a minimize isn't noticed, the window simply stays on
+  the taskbar.
+- XWayland is still available, opt-in, with `WEBROOST_XWAYLAND=1`.
+- **Click-to-call presses Call more reliably.** The call button now gets a
+  real mouse click at its position (scrolled into view first) instead of a
+  scripted click, which some web dialers ignore. Without a known call button,
+  Enter is still pressed in the number field.
+
 ## [4.4] - 2026-11-11
 
 ### Fixed

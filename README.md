@@ -12,7 +12,7 @@ desktop app: own window, tray icon, login, notifications, unread badge, autostar
   <a href="#install">Install</a> ·
   <a href="#moving-from-pwa-pop">Moving from PWA Pop</a> ·
   <a href="TESTING.md">Test checklist</a>
-  <br>Current version: <b>4.4</b> · Linux (KDE Plasma, GNOME, XFCE, Cinnamon…) · X11 and Wayland
+  <br>Current version: <b>4.5</b> · Linux (KDE Plasma, GNOME, XFCE, Cinnamon…) · X11 and Wayland
 </p>
 
 <p align="center"><img src="docs/screenshots/manager.png" width="820" alt="The WebRoost manager listing four apps with their status, memory use and buttons"></p>
@@ -118,8 +118,8 @@ In **Manage apps → Edit**:
 - **Notify when the unread count goes up**: new-mail popups for the new Outlook
   and similar sites.
 - **Minimize to the tray**: minimize hides to the tray instead of the taskbar.
-  On Wayland this runs the app through XWayland, because Wayland doesn't tell
-  apps they were minimized.
+  On Wayland the compositor doesn't tell apps they were minimized, so WebRoost
+  watches for the page being hidden; this is best effort.
 - **Stay signed in across restarts**: on by default.
 - **Open phone links (tel:, callto:, sip:)**: makes this app your click-to-call
   phone. See [Click-to-call](#click-to-call).
@@ -242,9 +242,6 @@ cd ~/Downloads && curl -fL -o webroost-4.1-x86_64.flatpak https://github.com/sam
   not, install the udev rule ([Install](#install)) and replug.
 * **A site says the browser is unsupported.** Set `user_agent:` to a current
   Chrome user agent string.
-* **Blurry app with "Minimize to the tray" on Wayland.** With fractional
-  scaling, set *System Settings → Display & Monitor → Legacy Applications
-  (X11)* to *Apply scaling themselves*.
 * **Start an app fresh.** Quit it, then `rm -rf ~/.config/webroost/profiles/<id>`.
 
 ## Configuration file
@@ -290,7 +287,7 @@ seconds. A full, commented example is in [`examples/apps.yaml`](examples/apps.ya
 | `raise_on_notification` | `false` | Show the window when the page posts a notification. |
 | `notify_on_unread` | `false` | Popup when the unread count goes up (sender, subject and preview when the page lists them). |
 | `badge_regex` | `\((\d+)\)` | How to read an unread count from the page title. |
-| `minimize_to_tray` | `false` | Minimize hides to the tray. On Wayland the app runs under XWayland; changing it restarts the app. `WEBROOST_NATIVE_WAYLAND=1` keeps it on Wayland. |
+| `minimize_to_tray` | `false` | Minimize hides to the tray. On Wayland this is best effort (WebRoost notices the page being hidden); changing it restarts the app. `WEBROOST_XWAYLAND=1` runs such apps under XWayland instead, where minimizing is always reported, but drawing can fail on some systems. |
 | `forget_session_cookies` | `false` | Drop session cookies when the app closes, instead of keeping sign-ins for 14 days. |
 | `memory_limit_mb` | – | Reload, then restart, the app above this many MB. Never during calls or while you're using it. |
 | `handle_schemes` | – | Link types this app opens and dials, e.g. `[tel, callto, sip]`. Only one app has them at a time. |

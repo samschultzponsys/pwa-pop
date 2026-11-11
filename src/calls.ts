@@ -84,7 +84,16 @@ export function dialScript(num: string, sel: DialSelectors): string {
       if (btn) { const o = btn.style.outline; btn.style.outline = '3px solid #e5394d'; setTimeout(() => { btn.style.outline = o; }, 4000); }
       return btn ? 'dry-button' : 'dry-no-button';
     }
-    if (btn) { btn.click(); return 'clicked'; }
+    if (btn) {
+      // Report where the button is: the app clicks it with a real mouse event,
+      // which every framework accepts (a scripted click() isn't always enough).
+      btn.scrollIntoView({ block: 'center', inline: 'center' });
+      await sleep(50);
+      const r = btn.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) return `button:${Math.round(r.left + r.width / 2)},${Math.round(r.top + r.height / 2)}`;
+      btn.click();
+      return 'clicked';
+    }
     input.focus();
     return 'no-button';
   }})(${JSON.stringify(num)}, ${JSON.stringify(sel)})`;
