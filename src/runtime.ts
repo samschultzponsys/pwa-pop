@@ -581,15 +581,16 @@ export class AppRuntime {
       this.notifyingUnread = false;
     }
     if (lines.length) this.lastTopUnread = lines.join('|');
-    else debug('  new message not found in the list; showing the count only');
+    else if (this.cfg.notify_only_with_message) { debug('  new message not found in the list: no popup (notify_only_with_message)'); return; }
+    else debug('  new message not found in the list; showing a plain popup');
     const many = added > 1 ? ` (+${added - 1} more)` : '';
-    const totalText = `${total.toLocaleString()} unread`;
+    const totalText = this.cfg.notify_show_unread_total ? `${total.toLocaleString()} unread` : '';
     if (lines.length) {
       const [first, ...rest] = lines;
-      const body = rest.join('\n').slice(0, 300);
-      this.notifications.notify(`${first.slice(0, 80)}${many}`, body || totalText);
+      const body = [rest.join('\n').slice(0, 300), totalText].filter(Boolean).join('\n');
+      this.notifications.notify(`${first.slice(0, 80)}${many}`, body);
     } else {
-      this.notifications.notify(added === 1 ? 'New message' : `${added} new messages`, totalText);
+      this.notifications.notify(added === 1 ? 'New message' : `${added} new messages`, totalText || `in ${this.cfg.name}`);
     }
   }
 

@@ -169,3 +169,5 @@ dialog#memory { width: min(760px, 96vw); }
   .mem-row { grid-template-columns: 32px minmax(0, 1fr); }
   .mem-spark { grid-column: 2; align-items: flex-start; }
 }
+
+label.check.sub { margin-left: 26px; font-size: 13px; }

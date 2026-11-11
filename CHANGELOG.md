@@ -9,6 +9,20 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [4.7] - 2026-11-11
+
+### Changed
+- **New-mail popups no longer show the unread total** ("4,295 unread"). Tick
+  *Add the unread total to these popups* (`notify_show_unread_total`) to get
+  it back.
+
+### Added
+- *Only pop up when the new message can be shown*
+  (`notify_only_with_message`). It skips the plain "New message" popups that
+  appear when the count goes up but no new message reaches the top of the
+  inbox list (mail filed by a rule into another folder, something marked
+  unread again…).
+
 ## [4.6] - 2026-11-11
 
 ### Fixed

@@ -28,6 +28,10 @@ export interface AppConfig {
    * which only Chrome has, such as the new Outlook.
    */
   notify_on_unread?: boolean;
+  /** notify_on_unread: skip the popup when the new message can't be shown (no "New message" popups). */
+  notify_only_with_message?: boolean;
+  /** notify_on_unread: add the unread total ("4,295 unread") to new-mail popups. */
+  notify_show_unread_total?: boolean;
   /** Show the window whenever the page raises a notification (e.g. incoming call). */
   raise_on_notification?: boolean;
   /** Regex with one capture group for the unread count. Default: \((\d+)\) */

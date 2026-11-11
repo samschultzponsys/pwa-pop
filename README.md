@@ -12,7 +12,7 @@ desktop app: own window, tray icon, login, notifications, unread badge, autostar
   <a href="#install">Install</a> ·
   <a href="#moving-from-pwa-pop">Moving from PWA Pop</a> ·
   <a href="TESTING.md">Test checklist</a>
-  <br>Current version: <b>4.6</b> · Linux (KDE Plasma, GNOME, XFCE, Cinnamon…) · X11 and Wayland
+  <br>Current version: <b>4.7</b> · Linux (KDE Plasma, GNOME, XFCE, Cinnamon…) · X11 and Wayland
 </p>
 
 <p align="center"><img src="docs/screenshots/manager.png" width="820" alt="The WebRoost manager listing four apps with their status, memory use and buttons"></p>
@@ -287,6 +287,8 @@ seconds. A full, commented example is in [`examples/apps.yaml`](examples/apps.ya
 | `urgent_notifications` | `false` | Notifications stay on screen until dismissed. |
 | `raise_on_notification` | `false` | Show the window when the page posts a notification. |
 | `notify_on_unread` | `false` | Popup when the unread count goes up (sender, subject and preview when the page lists them). |
+| `notify_only_with_message` | `false` | With `notify_on_unread`: no popup when the new message can't be found in the page (no plain "New message" popups). |
+| `notify_show_unread_total` | `false` | With `notify_on_unread`: add the unread total to the popup. |
 | `badge_regex` | `\((\d+)\)` | How to read an unread count from the page title. |
 | `minimize_to_tray` | `false` | Minimize hides to the tray. On KDE Plasma a KWin script takes the minimized window off the taskbar; on other Wayland desktops it's best effort (WebRoost notices the page being hidden). `WEBROOST_XWAYLAND=1` runs such apps under XWayland instead, where minimizing is always reported, but drawing can fail on some systems. |
 | `forget_session_cookies` | `false` | Drop session cookies when the app closes, instead of keeping sign-ins for 14 days. |
