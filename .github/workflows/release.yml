@@ -89,12 +89,22 @@ jobs:
         timeout-minutes: 12
         run: |
           APT="-o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30"
-          # GitHub's Azure mirror of Ubuntu has had outages (DNS failures, hangs):
-          # use Ubuntu's own archive instead.
-          for f in /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list; do
-            [ -f "$f" ] && sudo sed -i 's#http://azure\.archive\.ubuntu\.com/ubuntu#http://archive.ubuntu.com/ubuntu#g' "$f"
+          # The runners' Ubuntu mirrors sometimes can't be reached (in Nov 2026
+          # nothing under ubuntu.com resolved): use the first mirror that answers,
+          # including ones on other domains.
+          pick=""
+          for m in http://azure.archive.ubuntu.com/ubuntu http://archive.ubuntu.com/ubuntu \
+                   http://mirrors.edge.kernel.org/ubuntu http://mirror.math.princeton.edu/pub/ubuntu \
+                   http://ftp.halifax.rwth-aachen.de/ubuntu; do
+            if curl -fsS --max-time 10 -o /dev/null "$m/dists/noble/Release"; then pick="$m"; break; fi
+            echo "Ubuntu mirror not reachable: $m"
           done
-          grep -rh "archive.ubuntu.com" /etc/apt/apt-mirrors.txt /etc/apt/sources.list.d/ 2>/dev/null | head -3 || true
+          if [ -n "$pick" ]; then
+            echo "Using Ubuntu mirror: $pick"
+            for f in /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list; do
+              [ -f "$f" ] && sudo sed -E -i "s#https?://([a-z]+\.)*(archive|security)\.ubuntu\.com/ubuntu/?#$pick/#g" "$f"
+            done
+          fi
           for attempt in 1 2 3; do
             if sudo apt-get $APT update && sudo apt-get $APT install -y --no-install-recommends rpm libarchive-tools flatpak flatpak-builder elfutils; then
               exit 0
