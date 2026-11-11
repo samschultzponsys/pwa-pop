@@ -12,7 +12,7 @@ desktop app: own window, tray icon, login, notifications, unread badge, autostar
   <a href="#install">Install</a> ·
   <a href="#moving-from-pwa-pop">Moving from PWA Pop</a> ·
   <a href="TESTING.md">Test checklist</a>
-  <br>Current version: <b>4.8</b> · Linux (KDE Plasma, GNOME, XFCE, Cinnamon…) · X11 and Wayland
+  <br>Current version: <b>4.9</b> · Linux (KDE Plasma, GNOME, XFCE, Cinnamon…) · X11 and Wayland
 </p>
 
 <p align="center"><img src="docs/screenshots/manager.png" width="820" alt="The WebRoost manager listing four apps with their status, memory use and buttons"></p>
@@ -229,7 +229,7 @@ installs the right package. For the Flatpak it looks like this; set `V` to the
 version you want:
 
 ```bash
-V=4.8; cd ~/Downloads && curl -fL -o webroost-$V-x86_64.flatpak https://github.com/samschultzponsys/webroost/releases/download/v$V/webroost-$V-x86_64.flatpak && curl -fsSL https://github.com/samschultzponsys/webroost/releases/download/v$V/SHA256SUMS.txt | grep " webroost-$V-x86_64.flatpak$" | sha256sum -c - && flatpak install -y --user ./webroost-$V-x86_64.flatpak && flatpak run --branch=stable io.github.samschultzponsys.WebRoost --restart-all
+V=4.9; cd ~/Downloads && curl -fL -o webroost-$V-x86_64.flatpak https://github.com/samschultzponsys/webroost/releases/download/v$V/webroost-$V-x86_64.flatpak && curl -fsSL https://github.com/samschultzponsys/webroost/releases/download/v$V/SHA256SUMS.txt | grep " webroost-$V-x86_64.flatpak$" | sha256sum -c - && flatpak install -y --user ./webroost-$V-x86_64.flatpak && flatpak run --branch=stable io.github.samschultzponsys.WebRoost --restart-all
 ```
 
 ## Troubleshooting
@@ -255,8 +255,16 @@ V=4.8; cd ~/Downloads && curl -fL -o webroost-$V-x86_64.flatpak https://github.c
   Support* extension. KDE, XFCE, Cinnamon and others work out of the box.
 * **Headset not detected.** `getfacl /dev/hidraw*` should list your user. If
   not, install the udev rule ([Install](#install)) and replug.
+* **"Couldn't sign you in … this browser or app may not be secure" (Google).**
+  Google blocks sign-in from embedded browsers; since 4.9 WebRoost presents
+  itself as Firefox on Google's sign-in pages only, which gets past it. If
+  Google changes its check, sign in to the site another way (e.g. Claude's
+  *Continue with email*).
 * **A site says the browser is unsupported.** Set `user_agent:` to a current
   Chrome user agent string.
+* **Known limits of Electron apps:** passkeys through your phone or a password
+  manager, and DRM-protected streaming (Netflix, Spotify…), don't work. Use a
+  password, an email code or a hardware security key instead of a passkey.
 * **Start an app fresh.** Quit it, then `rm -rf ~/.config/webroost/profiles/<id>`.
 
 ## Configuration file
@@ -394,7 +402,7 @@ Unit tests: `npm test`. Manual release checks: [TESTING.md](TESTING.md).
 ## Versioning and releases
 
 * Versions are **`MAJOR.MINOR`**: … 4.8, 4.9, then **5.0**. `package.json`
-  stores `4.8.0` because npm needs three numbers.
+  stores `4.9.0` because npm needs three numbers.
 * To release: add notes under `## [Unreleased]` in `CHANGELOG.md`, bump the
   version (`npm run version:bump`) and push to `main`. GitHub Actions builds
   every package only when the version changes, and publishes **one release**,

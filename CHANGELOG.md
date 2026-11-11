@@ -9,6 +9,16 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [4.9] - 2026-11-11
+
+### Fixed
+- **"Sign in with Google" failed with "Couldn't sign you in: this browser or
+  app may not be secure".** Google blocks sign-in from Chromium-based
+  embedded browsers. On Google's account pages only, WebRoost now presents
+  itself as a current Firefox: in the request headers, without Chrome's
+  client-hint headers, and in the page's own `navigator`. Every other site,
+  including the app itself after sign-in, is unchanged.
+
 ## [4.8] - 2026-11-11
 
 ### Changed

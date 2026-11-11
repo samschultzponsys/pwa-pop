@@ -226,3 +226,12 @@ test('phone-link default also goes into kde-mimeapps.list when KDE has one', () 
   assert.match(fs.readFileSync(kde, 'utf8'), /^x-scheme-handler\/tel=io\.github\.samschultzponsys\.WebRoost\.linkus\.desktop;$/m);
   assert.match(fs.readFileSync(path.join(tmp, 'mimeapps.list'), 'utf8'), /^x-scheme-handler\/tel=io\.github\.samschultzponsys\.WebRoost\.linkus\.desktop;$/m);
 });
+
+test('Google sign-in pages get a current Firefox identity', () => {
+  const { firefoxUserAgent, GOOGLE_SIGNIN_HOSTS } = require('../dist/runtime');
+  assert.strictEqual(firefoxUserAgent(Date.UTC(2025, 5, 24)), 'Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0');
+  assert.match(firefoxUserAgent(Date.UTC(2026, 10, 11)), /Firefox\/15\d\.0$/);
+  assert.ok(GOOGLE_SIGNIN_HOSTS.test('accounts.google.com'));
+  assert.ok(!GOOGLE_SIGNIN_HOSTS.test('claude.ai'));
+  assert.ok(!GOOGLE_SIGNIN_HOSTS.test('mail.google.com'));
+});

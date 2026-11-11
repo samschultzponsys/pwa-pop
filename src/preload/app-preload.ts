@@ -43,6 +43,20 @@ contextBridge.exposeInMainWorld('__webroost', {
 
 function installShim(keepVisible: boolean): void {
   const w = window as any;
+  // Google sign-in pages see a Firefox (see firefoxUserAgent in runtime.ts):
+  // hide the Chromium-only bits that would give it away.
+  if (/^accounts\.(google|youtube)\.[a-z.]+$/i.test(location.hostname)) {
+    try {
+      Object.defineProperty(w.Navigator.prototype, 'userAgentData', { get: () => undefined, configurable: true });
+      Object.defineProperty(w.Navigator.prototype, 'vendor', { get: () => '', configurable: true });
+      // Same formula as firefoxUserAgent() in runtime.ts, so it also holds
+      // for a sign-in pop-up's first page.
+      const v = 140 + Math.max(0, Math.floor((Date.now() - Date.UTC(2025, 5, 24)) / (28 * 86_400_000)));
+      const ua = `Mozilla/5.0 (X11; Linux x86_64; rv:${v}.0) Gecko/20100101 Firefox/${v}.0`;
+      Object.defineProperty(w.Navigator.prototype, 'userAgent', { get: () => ua, configurable: true });
+      Object.defineProperty(w.Navigator.prototype, 'appVersion', { get: () => '5.0 (X11)', configurable: true });
+    } catch { /* ignore */ }
+  }
   if (keepVisible && !w.__webroostVisible) {
     w.__webroostVisible = true;
     try {

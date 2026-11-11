@@ -129,6 +129,20 @@ async function notificationServerReport(): Promise<string[]> {
   ];
 }
 
+/**
+ * Google refuses sign-in from Chromium-based embedded browsers ("This browser
+ * or app may not be secure"). On Google's account pages WebRoost presents
+ * itself as a current Firefox, as other web-app wrappers do; everywhere else
+ * nothing changes.
+ */
+export const GOOGLE_SIGNIN_HOSTS = /^(accounts\.google\.com|accounts\.youtube\.com|accounts\.google\.[a-z.]+)$/i;
+export function firefoxUserAgent(now = Date.now()): string {
+  // Firefox 140 shipped on 2025-06-24 and a new version follows every 4 weeks.
+  const v = 140 + Math.max(0, Math.floor((now - Date.UTC(2025, 5, 24)) / (28 * 86_400_000)));
+  return `Mozilla/5.0 (X11; Linux x86_64; rv:${v}.0) Gecko/20100101 Firefox/${v}.0`;
+}
+const isGoogleSignIn = (url: string) => { try { return GOOGLE_SIGNIN_HOSTS.test(new URL(url).hostname); } catch { return false; } };
+
 export function cleanUserAgent(ua: string): string {
   return ua
     .replace(/\(KHTML, like Gecko\)\s+(?:\S+\/\S+\s+)*?(Chrome\/)/, '(KHTML, like Gecko) $1')
@@ -743,6 +757,12 @@ export class AppRuntime {
     });
     for (const id of Object.keys(ses.serviceWorkers.getAllRunning())) attachWorker(Number(id));
     ses.setUserAgent(this.cfg.user_agent || cleanUserAgent(ses.getUserAgent()));
+    // Google sign-in: Firefox identity on Google's account pages only.
+    ses.webRequest.onBeforeSendHeaders({ urls: ['https://accounts.google.com/*', 'https://accounts.youtube.com/*'] }, (d, cb) => {
+      const headers: Record<string, string> = { ...d.requestHeaders, 'User-Agent': firefoxUserAgent() };
+      for (const k of Object.keys(headers)) if (/^sec-ch-ua/i.test(k)) delete headers[k];
+      cb({ requestHeaders: headers });
+    });
     ses.setSpellCheckerLanguages([app.getLocale() || 'en-US']);
 
     ses.setPermissionRequestHandler((wc, permission, callback, details) => {
@@ -907,6 +927,18 @@ export class AppRuntime {
 
   /** Navigation guard, popups, context menu and shortcuts for any webContents we own. */
   private attachWebContents(wc: WebContents, win: BrowserWindow, isChild: boolean) {
+    // The page's own navigator.userAgent must match the Firefox identity on
+    // Google's sign-in pages, and go back to normal afterwards.
+    const normalUA = wc.getUserAgent();
+    wc.on('did-start-navigation', (d) => {
+      if (!d.isMainFrame) return;
+      const google = isGoogleSignIn(d.url);
+      const want = google ? firefoxUserAgent() : normalUA;
+      if (wc.getUserAgent() !== want) {
+        wc.setUserAgent(want);
+        if (google) debug(`Google sign-in page: presenting as Firefox`);
+      }
+    });
     wc.setWindowOpenHandler(({ url }) => {
       // Sign-in popups (OAuth/OIDC/SAML) open as child windows even on other origins.
       if (url === 'about:blank' || url === '' || this.matcher.matches(url) || looksLikeAuth(url)) {
