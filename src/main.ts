@@ -12,6 +12,7 @@ import * as path from 'path';
 import { app } from 'electron';
 import { AppConfig, getApp, ID_RE, loadApps, upsertApp } from './config';
 import { autostartFile, desktopFile, desktopId, installApp, isInstalled, migrateDesktopEntries, uninstallApp } from './desktop';
+import { StateStore } from './state';
 import { CONFIG_FILE, ensureDir, migrateLegacyConfig, PROFILE_DIR, releaseVersion, writeVersionMarker } from './paths';
 
 const HELP = `WebRoost (webroost) — run web apps as tray-resident desktop apps
@@ -183,8 +184,15 @@ function main() {
     // Wayland compositors handle the minimize button themselves and don't
     // tell the app, so "minimize to the tray" can't work there. Under
     // XWayland every minimize is reported. WEBROOST_NATIVE_WAYLAND=1 opts out.
-    if (cfg.minimize_to_tray && process.env.WAYLAND_DISPLAY && process.env.DISPLAY && !process.env.WEBROOST_NATIVE_WAYLAND) {
+    // If XWayland didn't work here before (its GPU process kept crashing),
+    // the app stays on Wayland; see AppRuntime.watchGpuUnderX11().
+    const xwaylandBroken = !!new StateStore(cfg.id).data.xwaylandBroken;
+    if (cfg.minimize_to_tray && process.env.WAYLAND_DISPLAY && process.env.DISPLAY && !process.env.WEBROOST_NATIVE_WAYLAND && !xwaylandBroken) {
       app.commandLine.appendSwitch('ozone-platform', 'x11');
+      // GPU drivers inside the Flatpak can crash under XWayland (seen with
+      // Mesa on KDE 6.8): draw in software there. Mail and ticket sites
+      // don't need the GPU.
+      app.disableHardwareAcceleration();
     }
     if (!app.requestSingleInstanceLock({ id: cfg.id })) { app.exit(0); return; }
     try { migrateDesktopEntries([cfg]); } catch { /* best effort */ }

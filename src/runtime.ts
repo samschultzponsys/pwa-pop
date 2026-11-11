@@ -184,6 +184,7 @@ export class AppRuntime {
     this.scheduleUpdateChecks();
     this.watchMemory();
     this.watchSessionCookies();
+    this.watchGpuUnderX11();
     this.watchForNewVersion();
     this.watchUnreadInPage();
     ipcMain.on('wt:badge', (_e, count: number) => this.onAppBadge(Number(count)));
@@ -199,7 +200,7 @@ export class AppRuntime {
       }
     });
     this.watchConfig();
-    debug(`WebRoost ${releaseVersion()} running ${this.cfg.id} on ${app.commandLine.getSwitchValue('ozone-platform') || 'auto'} display: notify_on_unread=${!!this.cfg.notify_on_unread} minimize_to_tray=${!!this.cfg.minimize_to_tray} urgent=${!!this.cfg.urgent_notifications} session=${process.env.XDG_SESSION_TYPE ?? '?'}`);
+    debug(`WebRoost ${releaseVersion()} running ${this.cfg.id} on ${app.commandLine.getSwitchValue('ozone-platform') || 'auto'} display${this.state.data.xwaylandBroken ? ' (XWayland disabled after GPU crashes)' : ''}${app.isHardwareAccelerationEnabled() ? '' : ' (software drawing)'}: notify_on_unread=${!!this.cfg.notify_on_unread} minimize_to_tray=${!!this.cfg.minimize_to_tray} urgent=${!!this.cfg.urgent_notifications} session=${process.env.XDG_SESSION_TYPE ?? '?'}`);
     this.ses.serviceWorkers.on('running-status-changed', ({ versionId, runningStatus }) => {
       if (runningStatus !== 'running') return;
       const sw = this.ses.serviceWorkers.getWorkerFromVersionID(versionId);
@@ -637,6 +638,28 @@ export class AppRuntime {
   private watchSessionCookies() {
     setInterval(() => void this.keepSessionCookies(), 3 * 60_000);
     setTimeout(() => void this.keepSessionCookies(), 60_000);
+  }
+
+  /**
+   * Safety net for minimize-to-tray under XWayland: if the GPU (drawing)
+   * process keeps crashing, the window can't be drawn at all. Remember that
+   * XWayland is broken here and restart on native Wayland.
+   */
+  private watchGpuUnderX11() {
+    if (app.commandLine.getSwitchValue('ozone-platform') !== 'x11') return;
+    const crashes: number[] = [];
+    app.on('child-process-gone', (_e, d) => {
+      if (d.type !== 'GPU' || d.reason === 'clean-exit') return;
+      const now = Date.now();
+      crashes.push(now);
+      while (crashes.length && now - crashes[0] > 60_000) crashes.shift();
+      console.warn(`[webroost:${this.cfg.id}] GPU process gone under XWayland (${d.reason}, ${crashes.length} in the last minute)`);
+      if (crashes.length < 2 || this.state.data.xwaylandBroken) return;
+      this.state.update({ xwaylandBroken: true }, true);
+      this.notifications.notify(`${this.cfg.name} restarted on Wayland`,
+        'Drawing kept failing under XWayland on this system, so minimize-to-tray will hide to the taskbar instead of the tray for this app.');
+      setTimeout(() => void this.restart(), 1500);
+    });
   }
 
   /** Relaunch this app process, keeping it hidden if it is hidden now. */

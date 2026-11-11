@@ -5,6 +5,8 @@ import { ensureDir, STATE_DIR } from './paths';
 export interface AppState {
   bounds?: { x?: number; y?: number; width: number; height: number };
   maximized?: boolean;
+  /** XWayland failed here (GPU process crashed): don't use it for minimize-to-tray. */
+  xwaylandBroken?: boolean;
   /** Last size of the app's own pop-up windows (e.g. ConnectWise's Time Entry). */
   popupSize?: { width: number; height: number };
   muted?: boolean;

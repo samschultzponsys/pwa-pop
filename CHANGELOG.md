@@ -9,6 +9,17 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [4.4] - 2026-11-11
+
+### Fixed
+- **Apps with "Minimize to the tray" crashed on start (no window, tray icon
+  only).** Under XWayland, Chromium's GPU (drawing) process segfaulted inside
+  the Flatpak with the system's graphics driver, so the window could never be
+  drawn. Apps running under XWayland now draw in software. If the GPU process
+  still crashes twice within a minute, the app remembers XWayland doesn't
+  work on this machine, restarts on native Wayland and says so in a
+  notification.
+
 ## [4.3] - 2026-11-11
 
 ### Changed
