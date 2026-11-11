@@ -13,6 +13,8 @@ import { app } from 'electron';
 import { AppConfig, getApp, ID_RE, loadApps, upsertApp } from './config';
 import { autostartFile, desktopFile, desktopId, installApp, isInstalled, migrateDesktopEntries, uninstallApp } from './desktop';
 import { StateStore } from './state';
+import { onKdeWayland } from './kwin';
+import { setDefaultCallHandler } from './calls';
 import { CONFIG_FILE, ensureDir, migrateLegacyConfig, PROFILE_DIR, releaseVersion, writeVersionMarker } from './paths';
 
 const HELP = `WebRoost (webroost) — run web apps as tray-resident desktop apps
@@ -193,12 +195,18 @@ function main() {
       if (process.env.WEBROOST_XWAYLAND === '1' && process.env.DISPLAY && !xwaylandBroken) {
         app.commandLine.appendSwitch('ozone-platform', 'x11');
         app.disableHardwareAcceleration();
-      } else {
+      } else if (!onKdeWayland()) {
+        // KDE uses a KWin script instead (src/kwin.ts).
         app.commandLine.removeSwitch('disable-backgrounding-occluded-windows');
       }
     }
     if (!app.requestSingleInstanceLock({ id: cfg.id })) { app.exit(0); return; }
     try { migrateDesktopEntries([cfg]); } catch { /* best effort */ }
+    // The phone app keeps the tel:/callto:/sip: default (something else may
+    // have taken it, or an older version couldn't write it inside Flatpak).
+    if (cfg.handle_schemes?.length && isInstalled(cfg.id).menu) {
+      try { setDefaultCallHandler(`${desktopId(cfg.id)}.desktop`, cfg.handle_schemes); } catch (e) { console.warn('[webroost] could not set the phone-link default', e); }
+    }
     // We got the lock, so this app wasn't running: nothing to quit.
     if (flag('--quit')) { app.exit(0); return; }
     writeVersionMarker();

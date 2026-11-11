@@ -9,6 +9,32 @@ is in every file name (e.g. `pwa-pop-1.0-x86_64.rpm`).
 
 ## [Unreleased]
 
+## [4.6] - 2026-11-11
+
+### Fixed
+- **Minimize to the tray on KDE Plasma.** KWin handles the minimize button
+  itself and tells the app nothing, so nothing in the app could notice.
+  WebRoost now loads a small KWin script over D-Bus:
+  - when an app with *Minimize to the tray* is minimized, its window leaves
+    the taskbar; restoring it brings it back;
+  - clicking the tray icon brings the window back, reopening it if KWin won't
+    raise it;
+  - changing the setting updates the script with no restart.
+
+  The Flatpak may talk to `org.kde.KWin` for this.
+- **ConnectWise hid itself to the tray when changing screens.** A page that
+  is unloading reports "hidden", which looked like a minimize. KDE no longer
+  guesses from page visibility at all. Elsewhere a guess needs the window to
+  have lost focus too, and pages that are navigating away are ignored.
+- **Phone links from Chrome and other apps opened KDE Connect instead of the
+  phone app.**
+  - Inside the Flatpak, the default could never be saved:
+    `~/.config/mimeapps.list` was written through a temporary file next to
+    it, which the sandbox doesn't allow. It's now written in place.
+  - KDE's own `kde-mimeapps.list`, which takes priority, is updated too.
+  - The phone app claims the tel:/callto:/sip: default again each time it
+    starts.
+
 ## [4.5] - 2026-11-11
 
 ### Fixed

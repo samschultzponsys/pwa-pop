@@ -29,6 +29,8 @@ finish-args:
   # Native notifications and the KDE / AppIndicator system tray.
   - --talk-name=org.freedesktop.Notifications
   - --talk-name=org.kde.StatusNotifierWatcher
+  # Minimize to the tray on KDE: load a KWin script (src/kwin.ts).
+  - --talk-name=org.kde.KWin
   - --own-name=org.kde.*
   # Same config as the native packages, plus menu + autostart entries.
   - --filesystem=xdg-config/webroost:create
@@ -38,6 +40,8 @@ finish-args:
   - --filesystem=xdg-data/applications:create
   # Set WebRoost apps as the default for tel:/callto:/sip: links (click-to-call).
   - --filesystem=xdg-config/mimeapps.list
+  # KDE reads this one first when it exists.
+  - --filesystem=xdg-config/kde-mimeapps.list
   - --filesystem=xdg-download
   - --env=ELECTRON_OZONE_PLATFORM_HINT=auto
 modules:

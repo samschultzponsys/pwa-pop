@@ -15,6 +15,7 @@ import { NotificationBridge } from './notifications';
 import { isSafeExternal, looksLikeAuth, OriginMatcher } from './origins';
 import { assetPath, CONFIG_FILE, ensureDir, ICON_DIR, IN_FLATPAK, readVersionMarker, releaseVersion, spawnSelf } from './paths';
 import { MemorySample, StateStore } from './state';
+import { onKdeWayland, syncKwinScript } from './kwin';
 import { backgroundCheck, isNewer, UpdateInfo } from './updater';
 
 /** Permissions granted to allowed origins unless the config adds more. */
@@ -192,14 +193,23 @@ export class AppRuntime {
       if (e.sender === this.win.webContents) {
         debug(`page visibility: ${state} (window visible=${this.win.isVisible()} minimized=${this.win.isMinimized()} focused=${this.win.isFocused()})`);
       }
-      // Page hidden while its window is still "shown": the compositor minimized it.
-      if (state === 'hidden' && e.sender === this.win.webContents && this.cfg.minimize_to_tray
+      // Elsewhere than KDE (where a KWin script handles minimize-to-tray), a
+      // page that turns hidden while its window is shown, has lost focus and
+      // isn't just navigating means the compositor minimized the window.
+      if (state === 'hidden' && e.sender === this.win.webContents && this.cfg.minimize_to_tray && !this.kwinMinimize
         && this.win.isVisible() && Date.now() - this.shownAt > 1000) {
-        debug('page hidden while window shown: treating as minimize');
-        this.hideAll();
+        setTimeout(async () => {
+          if (this.win.isDestroyed() || !this.win.isVisible() || this.win.isFocused() || this.win.webContents.isLoading()) return;
+          let still = false;
+          try { still = await this.win.webContents.executeJavaScript('document.visibilityState', true) === 'hidden'; } catch { /* navigating */ }
+          if (!still) return;
+          debug('page hidden while window shown and unfocused: treating as minimize');
+          this.hideAll();
+        }, 400);
       }
     });
     this.watchConfig();
+    void syncKwinScript().then((ok) => { this.kwinMinimize = ok && !!this.cfg.minimize_to_tray; });
     debug(`WebRoost ${releaseVersion()} running ${this.cfg.id} on ${app.commandLine.getSwitchValue('ozone-platform') || 'auto'} display${this.state.data.xwaylandBroken ? ' (XWayland disabled after GPU crashes)' : ''}${app.isHardwareAccelerationEnabled() ? '' : ' (software drawing)'}: notify_on_unread=${!!this.cfg.notify_on_unread} minimize_to_tray=${!!this.cfg.minimize_to_tray} urgent=${!!this.cfg.urgent_notifications} session=${process.env.XDG_SESSION_TYPE ?? '?'}`);
     this.ses.serviceWorkers.on('running-status-changed', ({ versionId, runningStatus }) => {
       if (runningStatus !== 'running') return;
@@ -379,11 +389,15 @@ export class AppRuntime {
         this.cfg = { ...fresh, iconPath: fresh.iconPath ?? before.iconPath };
         this.matcher = new OriginMatcher(fresh.allowed_origins);
         if (fresh.notify_on_unread && !before.notify_on_unread) this.watchUnreadInPage();
-        // Minimize to the tray switches between Wayland and XWayland (see
-        // main.ts), which only takes effect on a restart.
-        if (!!fresh.minimize_to_tray !== !!before.minimize_to_tray && process.env.WAYLAND_DISPLAY && !process.env.WEBROOST_NATIVE_WAYLAND) {
-          debug('minimize_to_tray changed: restarting to switch display mode');
-          setTimeout(() => void this.restart(), 1500);
+        if (!!fresh.minimize_to_tray !== !!before.minimize_to_tray) {
+          if (onKdeWayland()) {
+            // KDE: update the KWin script, no restart needed.
+            void syncKwinScript().then((ok) => { this.kwinMinimize = ok && !!this.cfg.minimize_to_tray; });
+          } else if (process.env.WAYLAND_DISPLAY) {
+            // Elsewhere the Chromium switches differ (see main.ts): restart.
+            debug('minimize_to_tray changed: restarting');
+            setTimeout(() => void this.restart(), 1500);
+          }
         }
         if (fresh.icon_color !== before.icon_color || fresh.icon_label !== before.icon_label || fresh.icon !== before.icon) {
           void loadIconFile(this.cfg.iconPath).then((img) => {
@@ -1117,6 +1131,17 @@ export class AppRuntime {
     }
     this.win.focus();
     this.refreshMenu();
+    if (this.kwinMinimize) {
+      // KWin may not let the app raise a window the user minimized: if it
+      // didn't come up, map it afresh (a new window is never minimized).
+      setTimeout(() => {
+        if (this.win.isDestroyed() || this.win.isFocused()) return;
+        debug('window still minimized after show: reopening it');
+        this.win.hide();
+        this.win.show();
+        this.win.focus();
+      }, 350);
+    }
   }
 
   /** Size for the site's own pop-up windows: the last one you set, else most of the main window. */
@@ -1138,7 +1163,10 @@ export class AppRuntime {
   }
 
   toggle() {
-    if (this.win.isVisible() && !this.win.isMinimized()) this.hideAll();
+    // With the KWin script a minimized window still counts as "visible" to
+    // Electron: only hide it when it really is in front.
+    const shown = this.kwinMinimize ? this.win.isVisible() && this.win.isFocused() : this.win.isVisible() && !this.win.isMinimized();
+    if (shown) this.hideAll();
     else this.showAll();
   }
 
@@ -1183,6 +1211,8 @@ export class AppRuntime {
   }
 
   private badgeWorkers = new Set<number>();
+  /** KDE: a KWin script takes minimized windows of this app off the taskbar. */
+  private kwinMinimize = false;
 
   /** navigator.setAppBadge() from the page or its service worker. */
   private onAppBadge(count: number) {

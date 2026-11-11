@@ -192,3 +192,37 @@ test('first start after the rename copies ~/.config/webtray to ~/.config/webroos
   migrateLegacyConfig();
   assert.strictEqual(fs.readFileSync(path.join(CONFIG_DIR, 'apps.yaml'), 'utf8'), '[]\n');
 });
+
+test('KWin minimize-to-tray script takes only our minimized windows off the taskbar', () => {
+  const { scriptSource } = require('../dist/kwin');
+  const src = scriptSource(['io.github.samschultzponsys.WebRoost.outlook']);
+  const signal = () => { const fns = []; const s = (...a) => fns.forEach((f) => f(...a)); s.connect = (f) => fns.push(f); return s; };
+  const win = (name, minimized = false) => { const w = { desktopFileName: name, minimized, skipTaskbar: false, minimizedChanged: signal() }; return w; };
+  const outlook = win('io.github.samschultzponsys.WebRoost.outlook');
+  const other = win('org.kde.konsole');
+  const added = signal();
+  const workspace = { windowList: () => [outlook, other], windowAdded: added };
+  new Function('workspace', src)(workspace);
+  outlook.minimized = true; outlook.minimizedChanged();
+  assert.strictEqual(outlook.skipTaskbar, true, 'minimized: off the taskbar');
+  outlook.minimized = false; outlook.minimizedChanged();
+  assert.strictEqual(outlook.skipTaskbar, false, 'restored: back on the taskbar');
+  other.minimized = true; other.minimizedChanged();
+  assert.strictEqual(other.skipTaskbar, false, 'other apps untouched');
+  const late = win('io.github.samschultzponsys.WebRoost.outlook.desktop', true);
+  added(late);
+  assert.strictEqual(late.skipTaskbar, true, 'windows opened later are tracked too');
+});
+
+test('phone-link default also goes into kde-mimeapps.list when KDE has one', () => {
+  const { setDefaultCallHandler } = require('../dist/calls');
+  const kde = path.join(tmp, 'kde-mimeapps.list');
+  fs.writeFileSync(kde, '[Default Applications]\nx-scheme-handler/tel=org.kde.kdeconnect.handler.desktop;\n');
+  const before = process.env.XDG_CURRENT_DESKTOP;
+  process.env.XDG_CURRENT_DESKTOP = 'KDE';
+  try {
+    setDefaultCallHandler('io.github.samschultzponsys.WebRoost.linkus.desktop', ['tel']);
+  } finally { process.env.XDG_CURRENT_DESKTOP = before; }
+  assert.match(fs.readFileSync(kde, 'utf8'), /^x-scheme-handler\/tel=io\.github\.samschultzponsys\.WebRoost\.linkus\.desktop;$/m);
+  assert.match(fs.readFileSync(path.join(tmp, 'mimeapps.list'), 'utf8'), /^x-scheme-handler\/tel=io\.github\.samschultzponsys\.WebRoost\.linkus\.desktop;$/m);
+});

@@ -14,7 +14,12 @@ import { contextBridge, ipcRenderer } from 'electron';
 // "minimize to tray" notices a minimize.
 // Registered before the page's own listeners (capture on window), so it still
 // sees every change when the page is told it stays visible (below).
+let unloading = false;
+window.addEventListener('pagehide', () => { unloading = true; }, true);
+window.addEventListener('beforeunload', () => { unloading = true; }, true);
 window.addEventListener('visibilitychange', () => {
+  // A page going away also reports "hidden": that isn't a minimize.
+  if (unloading && document.visibilityState === 'hidden') return;
   ipcRenderer.send('wt:visibility', document.visibilityState);
 }, true);
 

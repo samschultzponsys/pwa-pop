@@ -135,8 +135,20 @@ export function selectorScript(x: number, y: number, kind: 'input' | 'button' | 
 
 const MIMEAPPS = () => path.join(CONFIG_HOME, 'mimeapps.list');
 
-function editMimeapps(edit: (sections: Map<string, Map<string, string>>) => void) {
-  const file = MIMEAPPS();
+/**
+ * Files that decide default apps: mimeapps.list, plus desktop-specific ones
+ * such as kde-mimeapps.list that take priority over it (only if present).
+ */
+function mimeappsFiles(): string[] {
+  const files = [MIMEAPPS()];
+  for (const d of (process.env.XDG_CURRENT_DESKTOP || '').toLowerCase().split(':').filter(Boolean)) {
+    const f = path.join(CONFIG_HOME, `${d}-mimeapps.list`);
+    if (/^[a-z0-9_-]+$/.test(d) && fs.existsSync(f) && !files.includes(f)) files.unshift(f);
+  }
+  return files;
+}
+
+function editMimeapps(edit: (sections: Map<string, Map<string, string>>) => void, file = MIMEAPPS()) {
   const sections = new Map<string, Map<string, string>>();
   const order: string[] = [];
   let cur = '';
@@ -152,14 +164,21 @@ function editMimeapps(edit: (sections: Map<string, Map<string, string>>) => void
   for (const k of sections.keys()) if (!order.includes(k)) order.push(k);
   const out = order.filter((k) => sections.get(k)!.size)
     .map((k) => `[${k}]\n` + [...sections.get(k)!].map(([a, b]) => `${a}=${b}`).join('\n')).join('\n\n') + '\n';
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file + '.tmp', out);
-  fs.renameSync(file + '.tmp', file);
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file + '.tmp', out);
+    fs.renameSync(file + '.tmp', file);
+  } catch {
+    // Inside Flatpak only the file itself is shared (no temp file or rename
+    // next to it): write it in place.
+    try { fs.rmSync(file + '.tmp', { force: true }); } catch { /* ignore */ }
+    fs.writeFileSync(file, out);
+  }
 }
 
 /** Make `desktopFileName` the default app for the given link schemes. */
 export function setDefaultCallHandler(desktopFileName: string, schemes: string[]) {
-  editMimeapps((sec) => {
+  for (const file of mimeappsFiles()) editMimeapps((sec) => {
     const def = sec.get('Default Applications') ?? new Map<string, string>();
     const added = sec.get('Added Associations') ?? new Map<string, string>();
     for (const s of schemes) {
@@ -170,13 +189,14 @@ export function setDefaultCallHandler(desktopFileName: string, schemes: string[]
     }
     sec.set('Default Applications', def);
     sec.set('Added Associations', added);
-  });
+  }, file);
 }
 
 /** Remove `desktopFileName` from every link-scheme association. */
 export function clearCallHandler(desktopFileName: string) {
   try {
-    if (!fs.existsSync(MIMEAPPS())) return;
+    for (const file of mimeappsFiles()) {
+    if (!fs.existsSync(file)) continue;
     editMimeapps((sec) => {
       for (const m of sec.values()) {
         for (const [k, v] of [...m]) {
@@ -185,6 +205,7 @@ export function clearCallHandler(desktopFileName: string) {
           if (list.length) m.set(k, list.join(';') + ';'); else m.delete(k);
         }
       }
-    });
+    }, file);
+    }
   } catch { /* best effort */ }
 }
